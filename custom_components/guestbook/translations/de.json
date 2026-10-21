@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gästebuch",
+        "description": "Wähle die Entitäten, die Guestbook beobachten soll. Alle Felder sind optional. Du kannst die Auswahl später ändern.",
+        "data": {
+          "doorbells": "Türklingeln",
+          "doors": "Türkontakte",
+          "presence": "Anwesenheitssensoren",
+          "residents": "Bewohner",
+          "resident_signals": "Bewohnersignale"
+        },
+        "data_description": {
+          "doorbells": "Event-Entitäten oder Binärsensoren der Türklingel. Ein Klingeln startet das Klingelfenster.",
+          "doors": "Türkontakte. Eine Öffnung nach dem Klingeln macht daraus einen Besuch.",
+          "presence": "Anwesenheits- oder Bewegungssensoren im Haus. Anwesenheit nach dem Klingeln macht daraus ebenfalls einen Besuch.",
+          "residents": "Person-Entitäten der Menschen, die hier wohnen. Bewohner werden nie zu Besuchen.",
+          "resident_signals": "Entitäten, die beweisen, dass ein Bewohner nach Hause kommt, zum Beispiel ein Fingerabdruckleser oder das Handy eines Bewohners."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Guestbook ist bereits eingerichtet. Es ist nur eine Instanz erlaubt."
+    }
+  },
+  "entity": {
+    "calendar": {
+      "visits": {
+        "name": "Besuche"
+      }
+    }
+  }
+}

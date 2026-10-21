@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Test setup with `pytest-homeassistant-custom-component` on Python 3.14, ruff, and a GitHub Actions test workflow
-- [ ] Rule core: ring then door opening or presence within the ring window gives an uncertain visit with reason `ring_then_door` or `ring_then_presence`; door or presence without a ring gives nothing
-- [ ] Rule core reports its next deadline and never reads the clock
-- [ ] Config flow creates one entry (single instance) with doorbell (`event` and `binary_sensor`), door, presence and resident selections
-- [ ] Store saves entries and loads them after a restart
-- [ ] Calendar "Visits" returns the visit through the calendar API, title "Visit (uncertain)", end = now while open
-- [ ] Integration test: set fake entity states, read the calendar, see the visit
+- [x] Test setup with `pytest-homeassistant-custom-component` on Python 3.14, ruff, and a GitHub Actions test workflow
+- [x] Rule core: ring then door opening or presence within the ring window gives an uncertain visit with reason `ring_then_door` or `ring_then_presence`; door or presence without a ring gives nothing
+- [x] Rule core reports its next deadline and never reads the clock
+- [x] Config flow creates one entry (single instance) with doorbell (`event` and `binary_sensor`), door, presence and resident selections
+- [x] Store saves entries and loads them after a restart
+- [x] Calendar "Visits" returns the visit through the calendar API, title "Visit (uncertain)", end = now while open
+- [x] Integration test: set fake entity states, read the calendar, see the visit
