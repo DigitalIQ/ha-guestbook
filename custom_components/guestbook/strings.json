@@ -86,6 +86,15 @@
   "exceptions": {
     "not_loaded": {
       "message": "Guestbook is not set up or not loaded."
+    },
+    "unknown_entry": {
+      "message": "There is no entry with the id {entry_id}. Use the id from the calendar event or from the sensor attributes."
+    },
+    "entry_pending": {
+      "message": "The entry {entry_id} is a ring that is still waiting for a door opening or presence. Correct it after the ring window has ended."
+    },
+    "end_before_start": {
+      "message": "The end must be after the start."
     }
   },
   "services": {
@@ -97,6 +106,82 @@
           "name": "Source",
           "description": "Optional text that says where the signal came from, for example the name of a lock."
         }
+      }
+    },
+    "correct_entry": {
+      "name": "Correct entry",
+      "description": "Tells Guestbook what an entry really was. The original decision is kept next to your correction.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry id",
+          "description": "The id of the visit or ring, shown in the sensor attributes and the bus events."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "What the entry really was. A resident is shown in no calendar, a delivery in the rings calendar and a visit in the visits calendar. Unknown keeps the entry where the rules put it."
+        },
+        "guest_name": {
+          "name": "Guest name",
+          "description": "Name of the guest, for a visit."
+        },
+        "start": {
+          "name": "Start",
+          "description": "Replaces the start time shown in the calendar."
+        },
+        "end": {
+          "name": "End",
+          "description": "Replaces the end time shown in the calendar."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Free text that is kept with the correction."
+        }
+      }
+    },
+    "add_visit": {
+      "name": "Add visit",
+      "description": "Logs a visit the sensors missed.",
+      "fields": {
+        "guests": {
+          "name": "Guests",
+          "description": "Names of the guests. A name that matches a guest profile uses that profile."
+        },
+        "start": {
+          "name": "Start",
+          "description": "When the visit began."
+        },
+        "end": {
+          "name": "End",
+          "description": "When the visit ended."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Free text that is kept with the visit."
+        }
+      }
+    },
+    "add_note": {
+      "name": "Add note",
+      "description": "Adds a free-text note to an entry.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry id",
+          "description": "The id of the visit or ring."
+        },
+        "note": {
+          "name": "Note",
+          "description": "The text to add."
+        }
+      }
+    }
+  },
+  "selector": {
+    "correction_kind": {
+      "options": {
+        "resident": "Resident",
+        "delivery": "Delivery",
+        "visit": "Visit",
+        "unknown": "Unknown"
       }
     }
   }

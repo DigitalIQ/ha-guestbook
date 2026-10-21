@@ -10,6 +10,7 @@ custom_components/guestbook/
     __init__.py         re-exports the public names below
     models.py           Signal, SignalKind, Entry, EntryKind, Certainty, Reason, Correction, Guest, Settings, Change, ChangeKind
     engine.py           Engine (the rule core)
+    effective.py        EffectiveKind, effective_kind/guests/start/end (entry + correction)
     render.py           renderer: render_description, render_title (entry + language -> text)
   __init__.py           setup/unload, wires store, engine, adapter, timers, platforms
   const.py              DOMAIN, config keys, defaults, event names
@@ -17,7 +18,7 @@ custom_components/guestbook/
   store.py              GuestbookStore (HA Store wrapper, purge)
   runtime.py            GuestbookRuntime: owns engine + store, applies Changes, fires events, notifies listeners
   adapter.py            state listeners -> Signal (doorbells, doors, presence, locks, resident signals)
-  calendar.py           Visits and Rings calendars (shared base class; Visits shows kind visit, Rings shows kind unanswered_ring)
+  calendar.py           Visits and Rings calendars (shared base class; Visits shows effective kind visit, Rings shows effective kinds unanswered_ring and delivery)
   sensor.py / binary_sensor.py
   services.py           actions
   notifier.py           pushes and correction answers
@@ -106,6 +107,8 @@ class Engine:
     def guest_present(self, guest_id: str, tracker: str, now: datetime) -> list[Change]
     def advance(self, now: datetime) -> list[Change]      # fire all deadlines <= now
     def next_deadline(self) -> datetime | None
+    def close(self, entry_id: str, now: datetime) -> list[Change]   # ticket 09, see Corrections
+    settings: Settings (read-only property)
     def active_entries(self) -> list[Entry]                # open visits and pending rings
     def set_settings(self, settings: Settings) -> None
     def set_guests(self, guests: list[Guest]) -> None
@@ -122,6 +125,29 @@ Resident signals (ticket 03): the engine keeps resident signals of the last `res
 Guest phones (ticket 05): `GUEST_HOME` / `GUEST_AWAY` signals carry `source` = the tracker entity id and `guest_id`; a signal for an unknown guest is ignored. `GUEST_HOME` with no open visit opens a certain `VISIT` (`OPENED`, `reason` `guest_phone`, one guest). With an open visit the guest joins it (`SIGNAL_ADDED`): an open certain visit is preferred, an open uncertain one becomes `CERTAIN` and keeps its start decision (`reason`). A guest already in an open visit only gets the signal appended. `GUEST_AWAY` is appended to every open visit that contains the guest. A certain visit has no max duration and ignores door quiet periods: it is open while the last signal of any known tracker is `GUEST_HOME`. Once every tracker is away its deadline is the latest away time plus `phone_grace`, and it ends there (`CLOSED`, `end` = that away time, `end_reason` `guests_left`). A phone back before the deadline cancels it; at the deadline it is too late (half-open), the old visit closes and a new one opens. Trackers no longer listed in the guests count as away, so `set_guests` can make a visit due; the caller advances afterwards. A ring plus door or presence while a certain visit is open does not open an uncertain visit: the pending rings are reported as `CLOSED` and the door or presence signal is appended to the certain visit (`SIGNAL_ADDED`). A resident signal never turns a certain visit into a resident arrival.
 
 Guest already home (lifecycle fix): `guest_present(guest_id, tracker, now)` is for a phone that is `home` at startup or when its guest is added, without a state change. It does nothing for an unknown guest or when an open visit already has the guest (restored visits are not duplicated). Otherwise it behaves like `GUEST_HOME` at `now` (joins an open visit), but a visit it opens has `reason` `guest_phone_at_start`. The runtime calls it for every guest with a `home` tracker in `async_start` and `async_set_guests`.
+
+## Corrections and additions (ticket 09)
+
+`core/effective.py` holds the only logic that applies a correction (calendar and sensor code only call it):
+
+- `effective_kind(entry) -> EffectiveKind` (`PENDING_RING`, `VISIT`, `UNANSWERED_RING`, `RESIDENT_ARRIVAL`, `DELIVERY`): correction `resident` gives `RESIDENT_ARRIVAL`, `delivery` gives `DELIVERY`, `visit` gives `VISIT` (also for unanswered rings and resident arrivals), `unknown` and no correction keep the kind of the decision. `DELIVERY` exists only here; it is never stored as `Entry.kind`.
+- `effective_guests(entry)`: profile names plus the correction's `guest_name` (case-insensitive, no duplicate). `effective_start` / `effective_end`: the correction's start and end, else the entry's.
+- Visits calendar: effective kind `VISIT`. Rings calendar: `UNANSWERED_RING` and `DELIVERY`. Resident arrivals appear nowhere. `render_title` follows the effective kind (`Delivery` / `Lieferung`) and guests. An entry counts as open in the calendar while `effective_end` is `None`.
+- `Engine.close(entry_id, now)` ends an open `VISIT` (`CLOSED`, `end` = now, `end_reason` `corrected`). It returns `[]` for unknown ids, closed entries and pending rings. A closed visit gets no more signals, its deadline is gone.
+
+Runtime methods (`GuestbookRuntime`, all raise `ServiceValidationError` with a translation key; the `entry_id` is a placeholder):
+
+- `async_correct_entry(entry_id, kind, *, guest_name, start, end, note, source="action") -> Entry`: stores `Correction(kind, now, source, ...)` in `entry.correction` next to the decision (a later correction replaces the earlier one), saves, closes the visit in the engine for `resident` and `delivery`, fires `guestbook_visit_corrected` (`entry_id`, `kind`, `guest_name`) and updates the entities. Errors: `unknown_entry`, `entry_pending` (a ring still in its window is not correctable), `end_before_start` (checked on the effective start and end).
+- `async_add_visit(guests, start, end, note=None) -> Entry`: a closed `VISIT`, `certainty` `certain`, `reason` `manual`, `settings` snapshot of the engine. Guest names are matched to the guest profiles by name, case-insensitive (profile id and name); other names are free names with id `""`. No bus events (it is not a live visit).
+- `async_add_note(entry_id, note) -> Entry`: appends to `entry.notes`. Error: `unknown_entry`.
+- `async_entries(*kinds: EffectiveKind)` filters by effective kind. `async_open_visits()` and the current visit sensor use `effective_guests`.
+
+Actions (`services.py`, schemas with `probatio`, descriptions in `services.yaml`, texts in `strings.json` and `translations/{en,de}.json`):
+
+- `guestbook.correct_entry`: `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note`. `SupportsResponse.OPTIONAL`: with a response it returns `entry_id`, `kind`, `decision`, `guests`, `start`, `end` (effective, ISO). Start and end are only display overrides; an end on an open visit does not close it.
+- `guestbook.add_visit`: optional `guests` (list of names), `start`, `end`, optional `note`.
+- `guestbook.add_note`: `entry_id`, `note`.
+- All use the first loaded entry (single config entry) and raise `not_loaded` when there is none. Naive datetimes count as local time.
 
 ## Renderer (ticket 07)
 
@@ -157,7 +183,8 @@ The runtime fires them from the Changes of entries of kind `VISIT` (ticket 08). 
 
 - `guestbook_visit_started`: `OPENED` or `CLASSIFIED` change of an open visit. `entry_id`, `guests`, `certainty`, `start`.
 - `guestbook_visit_event`: `SIGNAL_ADDED` change of a visit. `entry_id`, `guests`, `certainty`, `signal` (SignalKind value), `source` (entity id), `time`. The signal that turns a ring into a visit is part of `started` and not repeated. A guest phone joining an open visit is a `guest_home` event.
-- `guestbook_visit_ended`: `CLOSED` change of a visit. `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (whole seconds), `reason` (the end reason code: `door_then_quiet`, `max_duration`, `guests_left`). A visit that already fired `started` and is then reclassified as a resident arrival fires `ended` too, with `reason` `resident_arrival` and the data of the visit as it was (certainty `uncertain`).
+- `guestbook_visit_ended`: `CLOSED` change of a visit (also when a correction to resident or delivery closes an open visit, `reason` `corrected`). `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (whole seconds), `reason` (the end reason code: `door_then_quiet`, `max_duration`, `guests_left`, `corrected`). A visit that already fired `started` and is then reclassified as a resident arrival fires `ended` too, with `reason` `resident_arrival` and the data of the visit as it was (certainty `uncertain`).
+- `guestbook_visit_corrected` (ticket 09): `entry_id`, `kind` (the correction kind), `guest_name`; fired by `correct_entry` for every entry kind.
 - Resident arrivals and unanswered rings that never fired `started` fire nothing.
 
 ## Testing

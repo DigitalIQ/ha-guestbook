@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime, tzinfo
 
-from .models import Certainty, Entry, EntryKind, Reason, Signal, SignalKind
+from .effective import EffectiveKind, effective_guests, effective_kind
+from .models import Certainty, Entry, Reason, Signal, SignalKind
 
 DEFAULT_LANGUAGE = "en"
 ACTION_SOURCE = "action"
@@ -109,12 +110,15 @@ def _texts(language: str) -> dict[str, str]:
 
 def render_title(entry: Entry, language: str) -> str:
     texts = _texts(language)
-    if entry.kind is EntryKind.UNANSWERED_RING:
+    kind = effective_kind(entry)
+    if kind is EffectiveKind.UNANSWERED_RING:
         return texts["title_unanswered_ring"]
-    if entry.kind is EntryKind.RESIDENT_ARRIVAL:
+    if kind is EffectiveKind.RESIDENT_ARRIVAL:
         return texts["title_resident_arrival"]
-    if entry.guests:
-        return f"{texts['title_visit']}: " + ", ".join(guest["name"] for guest in entry.guests)
+    if kind is EffectiveKind.DELIVERY:
+        return texts["title_delivery"]
+    if guests := effective_guests(entry):
+        return f"{texts['title_visit']}: " + ", ".join(guests)
     return texts["title_visit_uncertain"] if entry.certainty is Certainty.UNCERTAIN else texts["title_visit"]
 
 

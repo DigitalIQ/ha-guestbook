@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] `guestbook.correct_entry` with entry id, kind (`resident`, `delivery`, `visit`, `unknown`), optional guest name, start, end, note
-- [ ] `resident` removes the entry from all calendars; `delivery` moves it to the rings calendar; `visit` moves an unanswered ring to the visits calendar
-- [ ] `guestbook.add_visit` with guests, start, end, note
-- [ ] `guestbook.add_note` adds a note to an entry
-- [ ] `guestbook_visit_corrected` bus event
-- [ ] Errors for unknown entry ids are readable and translated
+- [x] `guestbook.correct_entry` with entry id, kind (`resident`, `delivery`, `visit`, `unknown`), optional guest name, start, end, note
+- [x] `resident` removes the entry from all calendars; `delivery` moves it to the rings calendar; `visit` moves an unanswered ring to the visits calendar
+- [x] `guestbook.add_visit` with guests, start, end, note
+- [x] `guestbook.add_note` adds a note to an entry
+- [x] `guestbook_visit_corrected` bus event
+- [x] Errors for unknown entry ids are readable and translated

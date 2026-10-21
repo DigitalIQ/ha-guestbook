@@ -35,6 +35,7 @@ MAX_DURATION = Reason("max_duration", "No end detected, ended at the maximum dur
 GUEST_PHONE = Reason("guest_phone", "Guest phone joined the network")
 GUEST_PHONE_AT_START = Reason("guest_phone_at_start", "Guest phone was already on the network at startup")
 GUESTS_LEFT = Reason("guests_left", "All guest phones left")
+CORRECTED = Reason("corrected", "Closed by a correction")
 
 VISIT_SIGNALS = {
     SignalKind.DOOR_OPEN,
@@ -99,6 +100,19 @@ class Engine:
 
     def next_deadline(self) -> datetime | None:
         return min((d for e in self._active.values() if (d := self._deadline(e)) is not None), default=None)
+
+    def close(self, entry_id: str, now: datetime) -> list[Change]:
+        """End an open visit at `now` (a correction made it no visit); pending rings are left alone."""
+        visit = self._active.get(entry_id)
+        if visit is None or visit.kind is not EntryKind.VISIT:
+            return []
+        del self._active[entry_id]
+        visit.end, visit.end_reason = now, CORRECTED
+        return [Change(ChangeKind.CLOSED, visit)]
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings
 
     def active_entries(self) -> list[Entry]:
         return list(self._active.values())
