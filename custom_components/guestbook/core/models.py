@@ -217,3 +217,4 @@ class Change:
     kind: ChangeKind
     entry: Entry
     signal: Signal | None = None
+    previous: Entry | None = None  # shallow copy of the entry before a reclassification

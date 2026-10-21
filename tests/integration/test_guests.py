@@ -199,3 +199,47 @@ async def test_open_phone_visit_continues_after_a_restart(hass: HomeAssistant, s
     assert event["summary"] == "Visit: Alex"
     assert event["end"] == "2026-10-21T14:30:00+00:00"
     assert DOMAIN in hass.config.components
+
+
+async def test_guest_phone_already_home_when_the_guest_is_added_starts_a_certain_visit(
+    hass: HomeAssistant, setup_guestbook
+):
+    hass.states.async_set(ALEX_PHONE, "home")
+
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+
+    (event,) = await get_visits(hass)
+    assert event["summary"] == "Visit: Alex"
+    assert event["start"] == "2026-10-21T14:00:00+00:00"
+    assert hass.states.get("binary_sensor.alex_visiting").state == "on"
+
+
+async def test_guest_phone_already_home_at_startup_starts_a_certain_visit(
+    hass: HomeAssistant, setup_guestbook, freezer, hass_storage
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    hass_storage["guestbook.entries"]["data"]["entries"].clear()
+    await advance(hass, freezer, timedelta(minutes=10))
+    hass.states.async_set(ALEX_PHONE, "home")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    (event,) = await get_visits(hass)
+    assert event["summary"] == "Visit: Alex"
+    assert event["start"] == "2026-10-21T14:10:00+00:00"
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    (stored,) = hass_storage["guestbook.entries"]["data"]["entries"]
+    assert stored["reason"]["code"] == "guest_phone_at_start"
+
+
+async def test_restored_visit_with_the_guest_is_not_duplicated_at_startup(hass: HomeAssistant, setup_guestbook):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+
+    assert await hass.config_entries.async_reload(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    (event,) = await get_visits(hass)
+    assert event["start"] == "2026-10-21T14:00:00+00:00"

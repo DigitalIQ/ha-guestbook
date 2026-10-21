@@ -142,6 +142,7 @@ async def test_ended_fires_with_start_end_and_duration(hass: HomeAssistant, setu
         "start": "2026-10-21T14:00:00+00:00",
         "end": "2026-10-21T15:00:00+00:00",
         "duration": 3600,
+        "reason": "guests_left",
     }
 
 
@@ -155,6 +156,47 @@ async def test_ended_fires_for_an_uncertain_visit(hass: HomeAssistant, setup_gue
     (event,) = ended
     assert event.data["certainty"] == "uncertain"
     assert event.data["duration"] == 4 * 3600
+    assert event.data["reason"] == "max_duration"
+
+
+async def test_ended_reason_is_door_then_quiet_for_a_door_ended_visit(
+    hass: HomeAssistant, setup_guestbook, freezer, ended
+):
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(DOOR, "off")
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=10))
+
+    (event,) = ended
+    assert event.data["reason"] == "door_then_quiet"
+
+
+async def test_started_visit_that_becomes_a_resident_arrival_fires_ended(
+    hass: HomeAssistant, setup_guestbook, freezer, started, ended
+):
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=1))
+    hass.states.async_set(RESIDENT_BUTTON, "on")
+    await hass.async_block_till_done()
+
+    (event,) = ended
+    assert event.data == {
+        "entry_id": started[0].data["entry_id"],
+        "guests": [],
+        "certainty": "uncertain",
+        "start": "2026-10-21T14:00:00+00:00",
+        "end": "2026-10-21T14:01:00+00:00",
+        "duration": 60,
+        "reason": "resident_arrival",
+    }
+    assert hass.states.get("binary_sensor.guestbook_visit_active").state == "off"
+    assert hass.states.get(CURRENT_VISIT).state == "unknown"
 
 
 async def test_no_events_for_a_resident_arrival(hass: HomeAssistant, setup_guestbook, freezer, started, signals, ended):

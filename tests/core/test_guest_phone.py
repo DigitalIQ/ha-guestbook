@@ -4,6 +4,7 @@ from custom_components.guestbook.core import (
     Certainty,
     ChangeKind,
     Engine,
+    Entry,
     EntryKind,
     Guest,
     Settings,
@@ -238,3 +239,52 @@ def test_open_certain_visit_restored_from_storage_keeps_its_deadline():
     restored = Engine(Settings(), guests=[ALEX], entries=[type(visit).from_dict(visit.to_dict())])
 
     assert restored.next_deadline() == at("15:05")
+
+
+def test_guest_present_at_start_opens_a_certain_visit_with_its_own_reason():
+    engine = Engine(Settings(), guests=[ALEX])
+
+    (change,) = engine.guest_present("alex", ALEX_PHONE, at("14:00"))
+
+    visit = change.entry
+    assert change.kind is ChangeKind.OPENED
+    assert visit.certainty is Certainty.CERTAIN
+    assert visit.start == at("14:00")
+    assert visit.guests == [{"id": "alex", "name": "Alex"}]
+    assert visit.reason.code == "guest_phone_at_start"
+    assert [(s.kind, s.source) for s in visit.signals] == [(SignalKind.GUEST_HOME, ALEX_PHONE)]
+    assert engine.active_entries() == [visit]
+
+
+def test_guest_present_does_nothing_when_an_open_visit_has_the_guest():
+    engine = Engine(Settings(), guests=[ALEX])
+    (opened,) = engine.handle(home("13:00"))
+
+    assert engine.guest_present("alex", ALEX_PHONE, at("14:00")) == []
+    assert engine.active_entries() == [opened.entry]
+    assert len(opened.entry.signals) == 1
+
+
+def test_guest_present_does_nothing_for_a_restored_visit_with_the_guest():
+    visit = Engine(Settings(), guests=[ALEX]).handle(home("13:00"))[0].entry
+    restored = Engine(Settings(), guests=[ALEX], entries=[Entry.from_dict(visit.to_dict())])
+
+    assert restored.guest_present("alex", ALEX_PHONE, at("14:00")) == []
+    assert len(restored.active_entries()) == 1
+
+
+def test_guest_present_joins_an_open_visit_that_lacks_the_guest():
+    engine = Engine(Settings(), guests=[ALEX, SAM])
+    (opened,) = engine.handle(home("13:00", "sam", SAM_PHONE))
+
+    (change,) = engine.guest_present("alex", ALEX_PHONE, at("14:00"))
+
+    assert change.kind is ChangeKind.SIGNAL_ADDED
+    assert change.entry is opened.entry
+    assert [g["name"] for g in opened.entry.guests] == ["Sam", "Alex"]
+
+
+def test_guest_present_ignores_an_unknown_guest():
+    engine = Engine(Settings(), guests=[ALEX])
+
+    assert engine.guest_present("nobody", "device_tracker.other", at("14:00")) == []

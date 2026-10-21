@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 from custom_components.guestbook.core import (
+    Certainty,
     ChangeKind,
     Engine,
     Entry,
@@ -197,3 +198,23 @@ def test_resident_signals_are_not_restored_after_a_restart():
     (change,) = restarted.handle(signal(SignalKind.RING, "14:01"))
 
     assert change.entry.kind is EntryKind.PENDING_RING
+
+
+def test_change_of_a_reclassified_visit_remembers_the_visit_it_was():
+    engine = make_engine()
+    engine.handle(signal(SignalKind.RING, "14:00"))
+    engine.handle(signal(SignalKind.DOOR_OPEN, "14:01"))
+
+    (change,) = engine.handle(signal(RESIDENT, "14:02"))
+
+    assert change.previous.kind is EntryKind.VISIT
+    assert change.previous.certainty is Certainty.UNCERTAIN
+
+
+def test_change_of_a_reclassified_pending_ring_remembers_the_pending_ring():
+    engine = make_engine()
+    engine.handle(signal(SignalKind.RING, "14:00"))
+
+    (change,) = engine.handle(signal(RESIDENT, "14:01"))
+
+    assert change.previous.kind is EntryKind.PENDING_RING
