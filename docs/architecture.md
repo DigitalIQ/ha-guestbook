@@ -105,6 +105,7 @@ class Engine:
         # entries: open/pending entries restored from the store
     def handle(self, signal: Signal) -> list[Change]
     def guest_present(self, guest_id: str, tracker: str, now: datetime) -> list[Change]
+    def guest_absent(self, guest_id: str, tracker: str, now: datetime) -> list[Change]
     def advance(self, now: datetime) -> list[Change]      # fire all deadlines <= now
     def next_deadline(self) -> datetime | None
     def close(self, entry_id: str, now: datetime) -> list[Change]   # ticket 09, see Corrections
@@ -125,6 +126,8 @@ Resident signals (ticket 03): the engine keeps resident signals of the last `res
 Guest phones (ticket 05): `GUEST_HOME` / `GUEST_AWAY` signals carry `source` = the tracker entity id and `guest_id`; a signal for an unknown guest is ignored. `GUEST_HOME` with no open visit opens a certain `VISIT` (`OPENED`, `reason` `guest_phone`, one guest). With an open visit the guest joins it (`SIGNAL_ADDED`): an open certain visit is preferred, an open uncertain one becomes `CERTAIN` and keeps its start decision (`reason`). A guest already in an open visit only gets the signal appended. `GUEST_AWAY` is appended to every open visit that contains the guest. A certain visit has no max duration and ignores door quiet periods: it is open while the last signal of any known tracker is `GUEST_HOME`. Once every tracker is away its deadline is the latest away time plus `phone_grace`, and it ends there (`CLOSED`, `end` = that away time, `end_reason` `guests_left`). A phone back before the deadline cancels it; at the deadline it is too late (half-open), the old visit closes and a new one opens. Trackers no longer listed in the guests count as away, so `set_guests` can make a visit due; the caller advances afterwards. A ring plus door or presence while a certain visit is open does not open an uncertain visit: the pending rings are reported as `CLOSED` and the door or presence signal is appended to the certain visit (`SIGNAL_ADDED`). A resident signal never turns a certain visit into a resident arrival.
 
 Guest already home (lifecycle fix): `guest_present(guest_id, tracker, now)` is for a phone that is `home` at startup or when its guest is added, without a state change. It does nothing for an unknown guest or when an open visit already has the guest (restored visits are not duplicated). Otherwise it behaves like `GUEST_HOME` at `now` (joins an open visit), but a visit it opens has `reason` `guest_phone_at_start`. The runtime calls it for every guest with a `home` tracker in `async_start` and `async_set_guests`.
+
+Guest left during downtime: `guest_absent(guest_id, tracker, now)` appends a `GUEST_AWAY` signal at `now` to every open visit whose last signal for that tracker is `GUEST_HOME` (`SIGNAL_ADDED`); otherwise it does nothing and does not advance. In `async_start` the runtime advances, then calls it for every guest tracker whose state exists and is neither `home`, `unavailable` nor `unknown`, so the phone grace and the end rule apply from the startup time (end = startup time, `guests_left`).
 
 ## Corrections and additions (ticket 09)
 

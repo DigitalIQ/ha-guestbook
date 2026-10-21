@@ -288,3 +288,29 @@ def test_guest_present_ignores_an_unknown_guest():
     engine = Engine(Settings(), guests=[ALEX])
 
     assert engine.guest_present("nobody", "device_tracker.other", at("14:00")) == []
+
+
+def test_guest_absent_ends_a_restored_visit_after_the_phone_grace():
+    visit = Engine(Settings(), guests=[ALEX]).handle(home("13:00"))[0].entry
+    restored = Engine(Settings(), guests=[ALEX], entries=[Entry.from_dict(visit.to_dict())])
+
+    (change,) = restored.guest_absent("alex", ALEX_PHONE, at("14:00"))
+
+    assert change.kind is ChangeKind.SIGNAL_ADDED
+    assert [(s.kind, s.time) for s in change.entry.signals][-1] == (SignalKind.GUEST_AWAY, at("14:00"))
+    assert restored.next_deadline() == at("14:05")
+    (closed,) = restored.advance(at("14:05"))
+    assert closed.kind is ChangeKind.CLOSED
+    assert closed.entry.end == at("14:00")
+    assert closed.entry.end_reason.code == "guests_left"
+
+
+def test_guest_absent_does_nothing_when_the_phone_was_not_home_in_the_visit():
+    engine = Engine(Settings(), guests=[ALEX])
+    engine.handle(home("13:00"))
+    engine.handle(away("13:10"))
+
+    assert engine.guest_absent("alex", ALEX_PHONE, at("14:00")) == []
+    assert engine.guest_absent("alex", ALEX_TABLET, at("14:00")) == []
+    assert engine.guest_absent("nobody", "device_tracker.other", at("14:00")) == []
+    assert engine.next_deadline() == at("13:15")
