@@ -69,6 +69,4 @@ class GuestSensor(GuestbookEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return any(
-            guest["id"] == self._guest_id for visit in self._runtime.async_open_visits() for guest in visit.guests
-        )
+        return any(self._guest_id in visit.present_guest_ids for visit in self._runtime.async_open_visits())

@@ -177,6 +177,29 @@ def test_description_ends_with_start_and_end_reason():
     ]
 
 
+def test_description_says_how_many_older_signals_were_not_kept():
+    entry = visit(
+        signal(SignalKind.RING, "12:00", "event.front_doorbell"),
+        reason=Reason("ring_then_door", "x"),
+        dropped_signals=17,
+    )
+
+    assert describe(entry) == [
+        "14:00 Front doorbell: ring",
+        "",
+        "\u2026 17 older signals not kept",
+        "Started: ring followed by a door opening or presence",
+    ]
+    assert describe(entry, "de")[2] == "\u2026 17 \u00e4ltere Signale nicht gespeichert"
+
+
+def test_description_uses_the_singular_for_one_signal_not_kept():
+    entry = visit(signal(SignalKind.RING, "12:00", "event.front_doorbell"), dropped_signals=1)
+
+    assert describe(entry)[-1] == "\u2026 1 older signal not kept"
+    assert describe(entry, "de")[-1] == "\u2026 1 \u00e4lteres Signal nicht gespeichert"
+
+
 def test_unknown_reason_code_falls_back_to_the_detail_text():
     entry = visit(reason=Reason("new_rule", "Something new"))
 

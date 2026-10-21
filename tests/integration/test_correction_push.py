@@ -8,7 +8,18 @@ from pytest_homeassistant_custom_component.common import async_mock_service
 from custom_components.guestbook.const import CONF_RESIDENTS, EVENT_VISIT_CORRECTED
 from custom_components.guestbook.core import EffectiveKind
 
-from .conftest import ALEX_PHONE, DOOR, add_guest, advance, add_phone, get_rings, get_visits, ring, set_options, set_tracker
+from .conftest import (
+    ALEX_PHONE,
+    DOOR,
+    add_guest,
+    add_phone,
+    advance,
+    get_rings,
+    get_visits,
+    ring,
+    set_options,
+    set_tracker,
+)
 
 PIXEL_SERVICE = "mobile_app_pixel_of_alex"
 IPHONE_SERVICE = "mobile_app_iphone_of_sam"

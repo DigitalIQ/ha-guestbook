@@ -93,6 +93,48 @@ def test_presence_exactly_at_the_end_of_the_ring_window_counts():
     assert visit.reason.code == "ring_then_presence"
 
 
+def test_door_opening_at_the_end_of_the_ring_window_counts_even_when_the_clock_got_there_first():
+    engine = make_engine()
+    pending = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
+
+    assert engine.advance(at("14:05")) == []  # the timer fires exactly at the end of the window
+    changes = engine.handle(signal(SignalKind.DOOR_OPEN, "14:05"))
+
+    assert pending.kind is EntryKind.VISIT
+    assert [c.kind for c in changes] == [ChangeKind.CLASSIFIED]
+
+
+def test_presence_at_the_end_of_the_ring_window_counts_even_when_the_clock_got_there_first():
+    engine = make_engine()
+    pending = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
+
+    engine.advance(at("14:05"))
+    engine.handle(signal(SignalKind.PRESENCE_ON, "14:05"))
+
+    assert pending.kind is EntryKind.VISIT
+    assert pending.reason.code == "ring_then_presence"
+
+
+def test_ring_expires_as_soon_as_the_clock_is_past_the_end_of_the_window():
+    engine = make_engine()
+    pending = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
+
+    (change,) = engine.advance(at("14:05") + timedelta(microseconds=1))
+
+    assert change.entry is pending
+    assert pending.kind is EntryKind.UNANSWERED_RING
+
+
+def test_the_wake_up_for_a_ring_comes_just_after_the_end_of_the_window():
+    engine = make_engine()
+    engine.handle(signal(SignalKind.RING, "14:00"))
+
+    wake_up = engine.next_deadline()
+
+    assert at("14:05") < wake_up <= at("14:05:05")
+    assert engine.advance(wake_up)[0].entry.kind is EntryKind.UNANSWERED_RING
+
+
 def test_signal_just_after_the_end_of_the_ring_window_still_expires_the_ring_first():
     engine = make_engine()
     pending = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
@@ -121,7 +163,7 @@ def test_ring_alone_is_pending_and_reports_the_ring_window_end_as_deadline():
     (pending,) = engine.active_entries()
     assert pending.kind is EntryKind.PENDING_RING
     assert [c.kind for c in changes] == [ChangeKind.OPENED]
-    assert engine.next_deadline() == at("14:05")
+    assert at("14:05") < engine.next_deadline() <= at("14:05:05")
 
 
 def test_deadline_follows_the_settings_ring_window():
@@ -129,7 +171,7 @@ def test_deadline_follows_the_settings_ring_window():
 
     engine.handle(signal(SignalKind.RING, "14:00"))
 
-    assert engine.next_deadline() == at("14:02")
+    assert at("14:02") < engine.next_deadline() <= at("14:02:05")
 
 
 def test_ring_with_nothing_in_the_window_is_an_unanswered_ring():
@@ -138,7 +180,8 @@ def test_ring_with_nothing_in_the_window_is_an_unanswered_ring():
     pending = engine.handle(ring)[0].entry
 
     assert engine.advance(at("14:04:59")) == []
-    changes = engine.advance(at("14:05"))
+    assert engine.advance(at("14:05")) == []
+    changes = engine.advance(at("14:05:01"))
 
     assert [(c.kind, c.entry) for c in changes] == [(ChangeKind.CLASSIFIED, pending)]
     assert pending.kind is EntryKind.UNANSWERED_RING
@@ -155,7 +198,7 @@ def test_unanswered_ring_keeps_a_settings_snapshot_from_decision_time():
     engine.handle(signal(SignalKind.RING, "14:00"))
     engine.set_settings(Settings(ring_window=timedelta(minutes=9)))
 
-    (change,) = engine.advance(at("14:05"))
+    (change,) = engine.advance(at("14:05:01"))
 
     assert Settings.from_dict(change.entry.settings) == Settings(ring_window=timedelta(minutes=9))
 

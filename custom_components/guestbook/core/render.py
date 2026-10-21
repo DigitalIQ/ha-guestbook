@@ -30,6 +30,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "end": "Ended",
         "correction": "Correction",
         "notes": "Notes",
+        "dropped_one": "\u2026 {count} older signal not kept",
+        "dropped_many": "\u2026 {count} older signals not kept",
         "guest": "guest",
         "start_time": "start",
         "end_time": "end",
@@ -74,6 +76,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "end": "Ende",
         "correction": "Korrektur",
         "notes": "Notizen",
+        "dropped_one": "\u2026 {count} \u00e4lteres Signal nicht gespeichert",
+        "dropped_many": "\u2026 {count} \u00e4ltere Signale nicht gespeichert",
         "guest": "Gast",
         "start_time": "Beginn",
         "end_time": "Ende",
@@ -167,6 +171,10 @@ def _reason(reason: Reason, texts: dict[str, str]) -> str:
 
 def _footer(entry: Entry, texts: dict[str, str], clock, tz: tzinfo) -> list[str]:
     footer = []
+    if entry.dropped_signals:
+        footer.append(
+            texts["dropped_one" if entry.dropped_signals == 1 else "dropped_many"].format(count=entry.dropped_signals)
+        )
     if entry.reason:
         footer.append(f"{texts['start']}: {_reason(entry.reason, texts)}")
     if entry.end_reason:

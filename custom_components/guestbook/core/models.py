@@ -58,6 +58,10 @@ class ChangeKind(StrEnum):
     CLOSED = "closed"
     CLASSIFIED = "classified"
     CORRECTED = "corrected"
+    GUEST_LEFT = "guest_left"
+
+
+LEFT_GUESTS = "left_guests"  # key in Entry.rule_state: ids of guests who left a visit that went on without them
 
 
 @dataclass(frozen=True)
@@ -187,10 +191,17 @@ class Entry:
     settings: dict[str, float] = field(default_factory=dict)  # Settings snapshot at decision time
     rule_state: dict[str, Any] = field(default_factory=dict)  # private engine bookkeeping, JSON-safe
     question_token: str | None = None  # one-time token of the pending correction question, never exported
+    dropped_signals: int = 0  # ordinary signals that were dropped because the entry hit the signal cap
 
     @property
     def open(self) -> bool:
         return self.end is None
+
+    @property
+    def present_guest_ids(self) -> set[str]:
+        """Ids of the guests of the entry who are still there: not left (all phones away for the phone grace)."""
+        left = self.rule_state.get(LEFT_GUESTS, ())
+        return {guest["id"] for guest in self.guests if guest["id"] and guest["id"] not in left}
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -208,6 +219,7 @@ class Entry:
             "settings": dict(self.settings),
             "rule_state": dict(self.rule_state),
             "question_token": self.question_token,
+            "dropped_signals": self.dropped_signals,
         }
 
     @classmethod
@@ -227,6 +239,7 @@ class Entry:
             settings=dict(data.get("settings", {})),
             rule_state=dict(data.get("rule_state", {})),
             question_token=data.get("question_token"),
+            dropped_signals=int(data.get("dropped_signals", 0)),
         )
 
 

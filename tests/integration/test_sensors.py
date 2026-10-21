@@ -157,3 +157,39 @@ async def test_sensors_are_right_after_a_restart_with_an_open_visit(hass: HomeAs
     assert hass.states.get(VISIT_ACTIVE).state == "on"
     assert hass.states.get(CURRENT_VISIT).state == "Alex"
     assert hass.states.get(ALEX).state == "on"
+
+
+async def test_guest_sensor_goes_off_when_the_guest_left_a_visit_that_goes_on(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await add_guest(hass, setup_guestbook, "Sam", [SAM_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await set_tracker(hass, SAM_PHONE, "home")
+
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=4))
+    assert hass.states.get(ALEX).state == "on"  # the phone grace period is still running
+    await advance(hass, freezer, timedelta(minutes=1))
+
+    assert hass.states.get(ALEX).state == "off"
+    assert hass.states.get(SAM).state == "on"
+    assert hass.states.get(VISIT_ACTIVE).state == "on"
+    assert hass.states.get(CURRENT_VISIT).state == "Alex, Sam"  # the visit keeps both names
+    await set_tracker(hass, ALEX_PHONE, "home")
+    assert hass.states.get(ALEX).state == "on"
+
+
+async def test_guest_who_left_stays_off_after_a_restart(hass: HomeAssistant, setup_guestbook, freezer):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await add_guest(hass, setup_guestbook, "Sam", [SAM_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await set_tracker(hass, SAM_PHONE, "home")
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=5))
+
+    assert await hass.config_entries.async_reload(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(ALEX).state == "off"
+    assert hass.states.get(SAM).state == "on"
