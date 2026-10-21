@@ -25,7 +25,7 @@ async def restart(hass: HomeAssistant, entry) -> None:
 
 
 async def test_old_closed_entries_are_purged_at_startup(hass: HomeAssistant, setup_guestbook):
-    await set_options(hass, setup_guestbook, retention=30)
+    await set_options(hass, setup_guestbook, step="rules", retention=30)
     await add_visit(hass, "2026-08-01T10:00:00+00:00", "2026-08-01T11:00:00+00:00")
     await add_visit(hass, "2026-10-15T10:00:00+00:00", "2026-10-15T11:00:00+00:00")
     assert stored_days(setup_guestbook) == ["2026-08-01", "2026-10-15"]
@@ -45,7 +45,7 @@ async def test_retention_defaults_to_a_year(hass: HomeAssistant, setup_guestbook
 
 
 async def test_purge_runs_once_a_day(hass: HomeAssistant, setup_guestbook, freezer):
-    await set_options(hass, setup_guestbook, retention=30)
+    await set_options(hass, setup_guestbook, step="rules", retention=30)
     await add_visit(hass, "2026-09-21T10:00:00+00:00", "2026-09-21T14:00:00+00:00")
     await advance(hass, freezer, timedelta(hours=23))
     assert stored_days(setup_guestbook) == ["2026-09-21"]
@@ -56,7 +56,7 @@ async def test_purge_runs_once_a_day(hass: HomeAssistant, setup_guestbook, freez
 
 
 async def test_open_visits_are_never_purged(hass: HomeAssistant, setup_guestbook, freezer):
-    await set_options(hass, setup_guestbook, retention=30)
+    await set_options(hass, setup_guestbook, step="rules", retention=30)
     await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
     await set_tracker(hass, ALEX_PHONE, "home")
 

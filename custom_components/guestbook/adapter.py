@@ -85,6 +85,15 @@ def _guest_phone(guest_id: str, entity_id: str, old: State | None, new: State) -
     return None
 
 
+SOURCE_CONVERTERS: tuple[tuple[str, Converter], ...] = (
+    (CONF_DOORBELLS, _doorbell),
+    (CONF_DOORS, _door),
+    (CONF_PRESENCE, _presence),
+    (CONF_LOCKS, _lock),
+    (CONF_RESIDENT_SIGNALS, _resident),
+)
+
+
 class SignalAdapter:
     def __init__(
         self,
@@ -98,29 +107,44 @@ class SignalAdapter:
         self._trackers: dict[str, str] = {}
         self._unsub_trackers: CALLBACK_TYPE | None = None
         self._converters: dict[str, list[Converter]] = {}
-        for key, converter in (
-            (CONF_DOORBELLS, _doorbell),
-            (CONF_DOORS, _door),
-            (CONF_PRESENCE, _presence),
-            (CONF_LOCKS, _lock),
-            (CONF_RESIDENT_SIGNALS, _resident),
-        ):
-            for entity_id in config.get(key, []):
-                self._converters.setdefault(entity_id, []).append(converter)
-
+        self._unsub_sources: CALLBACK_TYPE | None = None
+        self._set_sources(config)
         self._set_trackers(guests)
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
-        unsub = async_track_state_change_event(self._hass, list(self._converters), self._handle_state_change)
+        self._subscribe_sources()
         self._subscribe_trackers()
 
         @callback
         def stop() -> None:
-            unsub()
+            self._unsubscribe_sources()
             self._unsubscribe_trackers()
 
         return stop
+
+    @callback
+    def async_set_sources(self, config: Mapping[str, Any]) -> None:
+        """Listen to the sources of `config` instead of the old ones; the entities need not exist."""
+        self._unsubscribe_sources()
+        self._set_sources(config)
+        self._subscribe_sources()
+
+    def _set_sources(self, config: Mapping[str, Any]) -> None:
+        self._converters = {}
+        for key, converter in SOURCE_CONVERTERS:
+            for entity_id in config.get(key, []):
+                self._converters.setdefault(entity_id, []).append(converter)
+
+    def _subscribe_sources(self) -> None:
+        self._unsub_sources = async_track_state_change_event(
+            self._hass, list(self._converters), self._handle_state_change
+        )
+
+    def _unsubscribe_sources(self) -> None:
+        if self._unsub_sources:
+            self._unsub_sources()
+            self._unsub_sources = None
 
     @callback
     def async_set_guests(self, guests: list[Guest]) -> None:

@@ -9,9 +9,10 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .adapter import SignalAdapter
-from .const import CONF_NAME, CONF_TRACKERS, DOMAIN, SUBENTRY_GUEST
+from .const import CONF_NAME, CONF_TRACKERS, DOMAIN, SOURCE_KEYS, SUBENTRY_GUEST
 from .core import Engine, Guest
 from .notifier import Notifier
+from .repairs import SourceMonitor
 from .runtime import GuestbookRuntime
 from .services import async_register_services
 from .settings import settings_from_options
@@ -37,6 +38,10 @@ def _guests(entry: ConfigEntry) -> list[Guest]:
     ]
 
 
+def _sources(entry: ConfigEntry) -> dict[str, list[str]]:
+    return {key: list(entry.data.get(key, [])) for key in SOURCE_KEYS}
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) -> bool:
     store = GuestbookStore(hass)
     await store.async_load()
@@ -46,14 +51,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) ->
     )
     adapter = SignalAdapter(hass, entry.data, guests, runtime.async_handle_signal)
     entry.runtime_data = runtime
+    monitor = SourceMonitor(hass, entry)
     known_guests = guests
     known_settings = runtime.settings
+    known_sources = _sources(entry)
 
     async def async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-        nonlocal known_guests, known_settings
+        nonlocal known_guests, known_settings, known_sources
         if (settings := settings_from_options(entry.options)) != known_settings:
             known_settings = settings
             runtime.async_set_settings(settings)
+        if (sources := _sources(entry)) != known_sources:
+            known_sources = sources
+            adapter.async_set_sources(entry.data)
+            monitor.async_refresh()
         if (guests := _guests(entry)) != known_guests:
             known_guests = guests
             adapter.async_set_guests(guests)
@@ -63,6 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) ->
 
     runtime.async_start()
     entry.async_on_unload(adapter.async_start())
+    entry.async_on_unload(monitor.async_start())
     entry.async_on_unload(entry.add_update_listener(async_entry_updated))
     entry.async_on_unload(runtime.async_stop)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

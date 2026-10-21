@@ -25,7 +25,7 @@ custom_components/guestbook/
   sensor.py / binary_sensor.py
   services.py           actions
   notifier.py           Notifier: pushes and correction answers (ticket 10, 11)
-  repairs.py            repair issues and fix flows
+  repairs.py            repair issues (missing sources, guest suggestions) and fix flows
   services.yaml, strings.json, translations/{en,de}.json, manifest.json, brand/
 tests/
   core/                 seam 1: rule core, no hass fixture
@@ -179,7 +179,7 @@ Sensors (ticket 06): `entity.py` holds `GuestbookEntity` (has_entity_name, no po
 
 ## Pushes (ticket 10)
 
-Options (`entry.options`, saved by the options flow `GuestbookOptionsFlow`, one step `init`; ticket 14 adds the rule numbers and sources to it): `phones` (list of device ids, `DeviceSelector` for integration `mobile_app`, multiple), `notify_entities` (list of `notify` entity ids), `push_arrival` (on), `push_end` (on), `push_correction` (on), `push_unanswered_ring` (off). Keys and defaults are in `const.py` (`PUSH_DEFAULTS`). The notifier reads the options at send time, so a change needs no reload; the entry update listener ignores updates that leave the guest list as it was, so options changes never touch open visits.
+Push options (`entry.options`, step `pushes` of the options flow, see Settings): `phones` (list of device ids, `DeviceSelector` for integration `mobile_app`, multiple), `notify_entities` (list of `notify` entity ids), `push_arrival` (on), `push_end` (on), `push_correction` (on), `push_unanswered_ring` (off). Keys and defaults are in `const.py` (`PUSH_DEFAULTS`). The notifier reads the options at send time, so a change needs no reload; the entry update listener ignores updates that leave the guest list as it was, so options changes never touch open visits.
 
 `Notifier(hass, entry, runtime)` registers with `runtime.async_add_change_listener(cb(Change))`, which receives every Change the runtime applies. Triggers:
 
@@ -205,6 +205,18 @@ The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CL
 - `core/archive.py` (pure): `expired_entries(entries, now, retention)` returns the closed entries whose `end` is older than `now - retention` (an entry ending exactly at the cutoff stays; entries with `end` None, i.e. open visits and pending rings, are never expired). `entries_in_range(entries, start, end)` sorts by start and keeps `start <= entry.start < end` (a missing bound is open). `to_jsonl(entries)` is one `Entry.to_dict()` JSON object per line.
 - Retention is the option `retention` (days, default 365, `settings.py` maps it to `Settings.retention`). `GuestbookRuntime.async_purge(now)` removes the expired entries from the store; it runs in `async_start` and every day (`async_track_time_interval`, `PURGE_INTERVAL`). A changed retention applies at the next run; saving the option does not purge at once.
 - `guestbook.export` (optional `start`, `end`; `SupportsResponse.OPTIONAL`) calls `GuestbookRuntime.async_export(start, end)`. The file is `<config>/guestbook/guestbook-<UTC %Y%m%dT%H%M%SZ>.jsonl`, written in the executor (`hass.config.path`); a second export in the same second gets `-2`, `-3` instead of overwriting. The response is `{"path": ..., "count": ...}`. Naive datetimes count as local time. The export contains all stored entries in range, including pending rings and open visits.
+
+## Settings and repairs (ticket 14)
+
+`GuestbookOptionsFlow` is a menu (`init`) with four steps; each step saves on its own and finishes the flow:
+
+- `sources`: `doorbells`, `doors`, `presence`, `locks` (the selectors of the config flow). `residents`: `residents`, `resident_signals`. Both write into `entry.data` (`async_update_entry`), where the config flow put the sources; the options stay as they are. `SOURCE_KEYS` in `const.py` lists the six source keys.
+- `rules` writes numbers into `entry.options`: `ring_window`, `resident_window`, `quiet_period`, `entry_grace`, `phone_grace` (minutes), `max_duration` (hours), `retention` (days). `settings.py`: `settings_from_options(options) -> Settings` (a missing key keeps the core default), `rule_defaults()` (defaults in the option units, taken from `Settings()`).
+- `pushes` writes the push options. Steps merge their fields into the existing options, so the rules survive a push change and the other way round.
+
+The entry update listener (`__init__.py`) compares what changed and applies it without a reload: new settings go to `GuestbookRuntime.async_set_settings` (engine `set_settings`, advance, entities refresh; open visits keep running and their deadlines follow the new numbers, a deadline that has already passed under the new numbers fires at once), new sources to `SignalAdapter.async_set_sources` (re-subscribes) and `SourceMonitor.async_refresh`, new guests as before. Entries and open visits are never touched; `entry.runtime_data` stays the same object.
+
+Missing sources (`repairs.py`): `SourceMonitor` raises one non-fixable warning issue per selected source entity (all `SOURCE_KEYS`) that has neither a state nor an entity registry entry. Issue id `missing_source_<entity_id>`, translation key `missing_source`, placeholder `entity_id`. It checks once Home Assistant has started (`async_at_started`, so late integrations do not raise issues at boot), when the selection changes, and when a selected entity gets or loses its state or registry entry. Issues of deselected or returned entities are deleted; unloading the entry deletes all of them. Sources are independent: an unavailable or missing source never stops the signals of the others (each has its own state listener).
 
 ## Storage
 
