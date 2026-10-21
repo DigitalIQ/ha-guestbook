@@ -63,5 +63,25 @@ def test_jsonl_has_one_entry_per_line():
 
     lines = to_jsonl([first, second]).splitlines()
 
-    assert [json.loads(line) for line in lines] == [first.to_dict(), second.to_dict()]
+    assert [json.loads(line) for line in lines] == [
+        {k: v for k, v in e.to_dict().items() if k != "rule_state"} for e in (first, second)
+    ]
     assert to_jsonl([]) == ""
+
+
+def test_jsonl_leaves_out_the_private_rule_state():
+    visit = entry("visit", at("10:00"), at("10:30"))
+    visit.rule_state = {"deadline": "2026-10-21T10:05:00+00:00"}
+
+    (line,) = to_jsonl([visit]).splitlines()
+
+    assert "rule_state" not in json.loads(line)
+    assert visit.rule_state == {"deadline": "2026-10-21T10:05:00+00:00"}
+    assert "rule_state" in visit.to_dict()
+
+
+def test_range_never_contains_pending_rings():
+    pending = entry("pending", at("10:00"), None, EntryKind.PENDING_RING)
+    visit = entry("visit", at("11:00"), None)
+
+    assert entries_in_range([pending, visit], None, None) == [visit]

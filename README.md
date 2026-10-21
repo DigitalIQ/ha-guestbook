@@ -101,7 +101,7 @@ With the default names, Guestbook creates these entities. Your entity ids may di
 | Entity | What it shows |
 | --- | --- |
 | `binary_sensor.guestbook_visit_active` | On while any visit is open. |
-| `sensor.guestbook_current_visit` | The guests of the current visit, or `unknown`. Attributes: `entry_id`, `start`, `certainty`. Attributes stay small on purpose, so the recorder keeps storing them. |
+| `sensor.guestbook_current_visit` | The guests of the current visit, or "Unknown guest" ("Unbekannter Gast" in German) when nobody is known. Unknown while no visit is open. Attributes: `entry_id`, `start`, `certainty`. Attributes stay small on purpose, so the recorder keeps storing them. |
 | `binary_sensor.<guest>_visiting` | One per guest, on while that guest is visiting. |
 | `calendar.guestbook_visits` | One event per visit. |
 | `calendar.guestbook_rings` | Unanswered rings and entries you corrected to a delivery. |
@@ -128,7 +128,7 @@ All times are ISO strings in UTC. `guests` is a list of names.
 | `guestbook_visit_started` | A visit starts, or an uncertain ring turns into a visit. | `entry_id`, `guests`, `certainty` (`certain` or `uncertain`), `start` |
 | `guestbook_visit_event` | A signal is added to an open visit. | `entry_id`, `guests`, `certainty`, `signal`, `source` (entity id), `time` |
 | `guestbook_visit_ended` | A visit ends. | `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (seconds), `reason` |
-| `guestbook_visit_corrected` | A correction is saved. | `entry_id`, `kind`, `guest_name` |
+| `guestbook_visit_corrected` | A correction is saved. | `entry_id`, `kind`, `guest_name`, `guests`, `certainty`, `start`, `end` (`guests`, `start` and `end` as they count after the correction) |
 
 `signal` is one of `ring`, `door_open`, `door_close`, `presence_on`, `presence_off`, `lock`, `guest_home`, `guest_away`, `resident`. `reason` of the end event is `door_then_quiet`, `max_duration`, `guests_left`, `corrected` or `resident_arrival`.
 
@@ -173,19 +173,18 @@ Text-only targets cannot have buttons. Their message ends with `Entry id: <id>`.
 
 ## Export
 
-Run the action `guestbook.export`, optionally with `start` and `end`. It writes `/config/guestbook/guestbook-<UTC time>.jsonl`. The file has one entry per line, so you can hand it to an AI assistant to tune the rules. It contains every stored entry in the range, including open visits and rings still waiting.
+Run the action `guestbook.export`, optionally with `start` and `end`. It writes `/config/guestbook/guestbook-<UTC time>.jsonl`. The file has one entry per line, so you can hand it to an AI assistant to tune the rules. It contains every stored entry in the range, including open visits. Rings still waiting for their ring window to end are not exported.
 
 An entry looks like this (shortened, invented data):
 
 ```json
-{"id": "3f9c1d0e5a7b4c2d8e6f0a1b2c3d4e5f", "kind": "visit", "start": "2026-10-21T14:00:10+00:00", "end": "2026-10-21T15:20:00+00:00", "certainty": "uncertain", "guests": [], "signals": [{"kind": "ring", "time": "2026-10-21T14:00:10+00:00", "source": "event.front_doorbell", "state": null, "guest_id": null}], "reason": {"code": "ring_then_door", "detail": ""}, "end_reason": {"code": "door_then_quiet", "detail": ""}, "correction": {"kind": "visit", "time": "2026-10-21T15:30:00+00:00", "source": "push", "guest_name": "Alex", "start": null, "end": null, "note": null}, "notes": [], "settings": {"ring_window": 300.0, "quiet_period": 600.0}, "rule_state": {}}
+{"id": "3f9c1d0e5a7b4c2d8e6f0a1b2c3d4e5f", "kind": "visit", "start": "2026-10-21T14:00:10+00:00", "end": "2026-10-21T15:20:00+00:00", "certainty": "uncertain", "guests": [], "signals": [{"kind": "ring", "time": "2026-10-21T14:00:10+00:00", "source": "event.front_doorbell", "state": null, "guest_id": null}], "reason": {"code": "ring_then_door", "detail": ""}, "end_reason": {"code": "door_then_quiet", "detail": ""}, "correction": {"kind": "visit", "time": "2026-10-21T15:30:00+00:00", "source": "push", "guest_name": "Alex", "start": null, "end": null, "note": null}, "notes": [], "settings": {"ring_window": 300.0, "quiet_period": 600.0}}
 ```
 
-- `kind` is the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival` or `pending_ring`.
+- `kind` is the decision of the rules: `visit`, `unanswered_ring` or `resident_arrival`.
 - `reason` and `end_reason` say which rule fired.
 - `correction` is your answer, or `null`. It never replaces the decision.
 - `settings` is a snapshot of the rule numbers at decision time, in seconds.
-- `rule_state` is internal bookkeeping of the rule engine.
 
 ## Example automations
 

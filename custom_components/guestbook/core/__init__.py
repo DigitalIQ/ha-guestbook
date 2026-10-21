@@ -3,7 +3,7 @@
 from .archive import entries_in_range, expired_entries, to_jsonl
 from .effective import EffectiveKind, effective_end, effective_guests, effective_kind, effective_start
 from .engine import Engine
-from .messages import PushKind, action_id, correction_actions, parse_action_id, push_message, push_title
+from .messages import PushKind, action_id, correction_actions, parse_action_id, push_message, push_title, unknown_guest
 from .models import (
     Certainty,
     Change,
@@ -48,4 +48,5 @@ __all__ = [
     "render_description",
     "render_title",
     "to_jsonl",
+    "unknown_guest",
 ]

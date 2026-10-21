@@ -50,11 +50,20 @@ async def test_current_visit_of_an_uncertain_visit_has_no_guest(hass: HomeAssist
 
     current = hass.states.get(CURRENT_VISIT)
 
-    assert current.state == "unknown"
+    assert current.state == "Unknown guest"
     assert set(current.attributes) - {"friendly_name"} == {"entry_id", "start", "certainty"}
     assert current.attributes["certainty"] == "uncertain"
     assert current.attributes["start"] == "2026-10-21T14:01:00+00:00"
     assert current.attributes["entry_id"]
+
+
+async def test_current_visit_without_guests_uses_the_language_of_home_assistant(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    hass.config.language = "de"
+    await start_uncertain_visit(hass)
+
+    assert hass.states.get(CURRENT_VISIT).state == "Unbekannter Gast"
 
 
 async def test_current_visit_lists_the_guest_names(hass: HomeAssistant, setup_guestbook, freezer):

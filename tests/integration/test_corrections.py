@@ -7,7 +7,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import async_capture_events
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
 
 from custom_components.guestbook.const import DOMAIN, EVENT_VISIT_CORRECTED, EVENT_VISIT_ENDED
 from custom_components.guestbook.core import EffectiveKind
@@ -180,16 +180,32 @@ async def test_description_keeps_the_decision_and_shows_the_correction(hass: Hom
     )
 
 
-async def test_corrected_event_fires_with_entry_kind_and_guest_name(hass: HomeAssistant, setup_guestbook, freezer):
+async def test_corrected_event_fires_with_the_effective_entry(hass: HomeAssistant, setup_guestbook, freezer):
     corrected = async_capture_events(hass, EVENT_VISIT_CORRECTED)
     entry_id = await make_visit(hass, freezer)
 
-    await correct(hass, entry_id, "visit", guest_name="Alex")
+    await correct(hass, entry_id, "visit", guest_name="Alex", end="2026-10-21T17:00:00+00:00")
     await correct(hass, entry_id, "resident")
 
     assert [e.data for e in corrected] == [
-        {"entry_id": entry_id, "kind": "visit", "guest_name": "Alex"},
-        {"entry_id": entry_id, "kind": "resident", "guest_name": None},
+        {
+            "entry_id": entry_id,
+            "kind": "visit",
+            "guest_name": "Alex",
+            "guests": ["Alex"],
+            "certainty": "uncertain",
+            "start": "2026-10-21T14:00:00+00:00",
+            "end": "2026-10-21T17:00:00+00:00",
+        },
+        {
+            "entry_id": entry_id,
+            "kind": "resident",
+            "guest_name": None,
+            "guests": [],
+            "certainty": "uncertain",
+            "start": "2026-10-21T14:00:00+00:00",
+            "end": "2026-10-21T18:00:00+00:00",
+        },
     ]
 
 
@@ -337,6 +353,28 @@ async def test_actions_need_a_loaded_entry(hass: HomeAssistant, setup_guestbook)
         await correct(hass, "x", "resident")
 
     assert error.value.translation_key == "not_loaded"
+
+
+async def test_actions_use_the_first_loaded_entry_when_there_are_more(
+    hass: HomeAssistant, setup_guestbook, config_entry, freezer
+):
+    entry_id = await make_visit(hass, freezer)
+    second = MockConfigEntry(domain=DOMAIN, title="Guestbook 2", data=dict(config_entry.data))
+    second.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(second.entry_id)
+    await hass.async_block_till_done()
+
+    await correct(hass, entry_id, "delivery")
+    await hass.services.async_call(
+        DOMAIN,
+        "add_visit",
+        {"guests": ["Sam"], "start": "2026-10-20T10:00:00+00:00", "end": "2026-10-20T11:00:00+00:00"},
+        blocking=True,
+    )
+
+    assert setup_guestbook.runtime_data.async_get_entry(entry_id).correction.kind == "delivery"
+    assert len(setup_guestbook.runtime_data.async_entries(EffectiveKind.VISIT)) == 1
+    assert second.runtime_data.async_get_entry(entry_id).correction is None
 
 
 @pytest.mark.parametrize("language", ["en", "de"])

@@ -99,6 +99,43 @@ async def test_phone_dropping_out_of_the_network_does_not_split_the_visit(
     assert len(await get_visits(hass)) == 1
 
 
+async def test_phone_leaving_through_unavailable_still_ends_the_visit(hass: HomeAssistant, setup_guestbook, freezer):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await advance(hass, freezer, timedelta(minutes=30))
+
+    await set_tracker(hass, ALEX_PHONE, "unavailable")
+    await advance(hass, freezer, timedelta(minutes=30))
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=5))
+
+    assert hass.states.get("calendar.guestbook_visits").state == "off"
+    (event,) = await get_visits(hass)
+    assert event["end"] == "2026-10-21T15:00:00+00:00"
+
+
+async def test_phone_arriving_through_unavailable_starts_a_visit(hass: HomeAssistant, setup_guestbook, freezer):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "unavailable")
+
+    await set_tracker(hass, ALEX_PHONE, "home")
+
+    (event,) = await get_visits(hass)
+    assert event["summary"] == "Visit: Alex"
+    assert hass.states.get("calendar.guestbook_visits").state == "on"
+
+
+async def test_phone_not_home_before_and_after_unavailable_starts_nothing(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+
+    await set_tracker(hass, ALEX_PHONE, "unavailable")
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+
+    assert await get_visits(hass) == []
+
+
 async def test_phone_back_within_the_grace_period_keeps_one_visit(hass: HomeAssistant, setup_guestbook, freezer):
     await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
     await set_tracker(hass, ALEX_PHONE, "home")
@@ -278,6 +315,25 @@ async def test_restored_visit_stays_open_when_the_phone_is_unavailable_at_startu
     await advance(hass, freezer, timedelta(minutes=10))
 
     assert hass.states.get("binary_sensor.alex_visiting").state == "on"
+
+
+async def test_restored_visit_ends_when_the_phone_that_was_unavailable_at_startup_is_not_home(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(ALEX_PHONE, "unavailable")
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=5))
+
+    assert hass.states.get("binary_sensor.alex_visiting").state == "off"
+    (event,) = await get_visits(hass)
+    assert event["end"] == "2026-10-21T14:30:00+00:00"
 
 
 async def test_restored_visit_stays_open_while_one_of_two_phones_is_still_home(

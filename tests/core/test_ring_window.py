@@ -66,9 +66,41 @@ def test_door_opening_after_the_ring_window_does_not_start_a_visit():
     engine = make_engine()
 
     engine.handle(signal(SignalKind.RING, "14:00"))
-    engine.handle(signal(SignalKind.DOOR_OPEN, "14:05"))
+    engine.handle(signal(SignalKind.DOOR_OPEN, "14:05:01"))
 
     assert engine.active_entries() == []
+
+
+def test_door_opening_exactly_at_the_end_of_the_ring_window_counts():
+    engine = make_engine()
+
+    engine.handle(signal(SignalKind.RING, "14:00"))
+    changes = engine.handle(signal(SignalKind.DOOR_OPEN, "14:05"))
+
+    (visit,) = engine.active_entries()
+    assert visit.kind is EntryKind.VISIT
+    assert visit.start == at("14:00")
+    assert [c.kind for c in changes] == [ChangeKind.CLASSIFIED]
+
+
+def test_presence_exactly_at_the_end_of_the_ring_window_counts():
+    engine = make_engine()
+
+    engine.handle(signal(SignalKind.RING, "14:00"))
+    engine.handle(signal(SignalKind.PRESENCE_ON, "14:05"))
+
+    (visit,) = engine.active_entries()
+    assert visit.reason.code == "ring_then_presence"
+
+
+def test_signal_just_after_the_end_of_the_ring_window_still_expires_the_ring_first():
+    engine = make_engine()
+    pending = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
+
+    changes = engine.handle(signal(SignalKind.DOOR_CLOSE, "14:05:01"))
+
+    assert [(c.kind, c.entry) for c in changes] == [(ChangeKind.CLASSIFIED, pending)]
+    assert pending.kind is EntryKind.UNANSWERED_RING
 
 
 def test_door_opening_just_before_the_end_of_the_ring_window_counts():

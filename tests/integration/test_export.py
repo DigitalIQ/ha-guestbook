@@ -5,8 +5,9 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.guestbook.const import DOMAIN
+from custom_components.guestbook.core import EffectiveKind
 
-from .conftest import make_unanswered_ring, make_visit
+from .conftest import make_unanswered_ring, make_visit, ring
 
 
 @pytest.fixture
@@ -79,3 +80,16 @@ async def test_export_without_a_response_still_writes_the_file(
 
     (file,) = Path(hass_config_dir, "guestbook").glob("guestbook-*.jsonl")
     assert len(file.read_text().splitlines()) == 1
+
+
+async def test_export_leaves_out_pending_rings_and_the_rule_state(hass: HomeAssistant, setup_guestbook, freezer):
+    await make_visit(hass, freezer)
+    await ring(hass)
+    assert len(setup_guestbook.runtime_data.async_entries(EffectiveKind.PENDING_RING)) == 1
+
+    result = await export(hass)
+
+    assert result["count"] == 1
+    (line,) = read_lines(result["path"])
+    assert line["kind"] == "visit"
+    assert "rule_state" not in line

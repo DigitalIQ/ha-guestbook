@@ -60,7 +60,7 @@ class Engine:
         }
 
     def handle(self, signal: Signal) -> list[Change]:
-        changes = self.advance(signal.time)
+        changes = self._advance(signal.time, ring_window_inclusive=signal.kind in RING_THEN)
         if signal.kind is SignalKind.RING:
             changes.append(self._handle_ring(signal))
         elif signal.kind is SignalKind.RESIDENT:
@@ -110,11 +110,19 @@ class Engine:
         return next((s for s in reversed(visit.signals) if s.source == tracker and s.kind in PHONE_SIGNALS), None)
 
     def advance(self, now: datetime) -> list[Change]:
+        return self._advance(now, ring_window_inclusive=False)
+
+    def _advance(self, now: datetime, *, ring_window_inclusive: bool) -> list[Change]:
+        """Fire the deadlines up to `now`; a door opening or presence at the end of a ring window still counts."""
         due = sorted(
             (
                 (deadline, entry)
                 for entry in self._active.values()
-                if (deadline := self._deadline(entry)) is not None and deadline <= now
+                if (deadline := self._deadline(entry)) is not None
+                and (
+                    deadline < now
+                    or (deadline == now and not (ring_window_inclusive and entry.kind is EntryKind.PENDING_RING))
+                )
             ),
             key=lambda item: item[0],
         )
@@ -227,9 +235,16 @@ class Engine:
         return Change(ChangeKind.OPENED, visit, signal)
 
     def _append_to_visits_of_guest(self, signal: Signal) -> list[Change]:
+        """An away signal only counts for a visit that last saw this phone home."""
         changes = []
         for visit in self._active.values():
-            if visit.kind is EntryKind.VISIT and any(g["id"] == signal.guest_id for g in visit.guests):
+            last = self._last_phone_signal(visit, signal.source)
+            if (
+                visit.kind is EntryKind.VISIT
+                and any(g["id"] == signal.guest_id for g in visit.guests)
+                and last is not None
+                and last.kind is SignalKind.GUEST_HOME
+            ):
                 visit.signals.append(signal)
                 changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
         return changes

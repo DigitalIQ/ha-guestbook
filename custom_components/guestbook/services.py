@@ -66,13 +66,16 @@ def async_register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_loaded")
         return [entry.runtime_data for entry in entries]
 
+    def first_runtime() -> GuestbookRuntime:
+        return runtimes()[0]
+
     async def resident_unlock(call: ServiceCall) -> None:
         signal = Signal(SignalKind.RESIDENT, dt_util.utcnow(), "action", call.data.get(ATTR_SOURCE))
         for runtime in runtimes():
             runtime.async_handle_signal(signal)
 
     async def correct_entry(call: ServiceCall) -> dict[str, Any] | None:
-        (runtime,) = runtimes()
+        runtime = first_runtime()
         entry = runtime.async_correct_entry(
             call.data[ATTR_ENTRY_ID],
             call.data[ATTR_KIND],
@@ -94,7 +97,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         }
 
     async def add_visit(call: ServiceCall) -> None:
-        (runtime,) = runtimes()
+        runtime = first_runtime()
         runtime.async_add_visit(
             call.data[ATTR_GUESTS],
             _utc(call.data[ATTR_START]),
@@ -103,11 +106,11 @@ def async_register_services(hass: HomeAssistant) -> None:
         )
 
     async def add_note(call: ServiceCall) -> None:
-        (runtime,) = runtimes()
+        runtime = first_runtime()
         runtime.async_add_note(call.data[ATTR_ENTRY_ID], call.data[ATTR_NOTE])
 
     async def export(call: ServiceCall) -> dict[str, Any]:
-        (runtime,) = runtimes()
+        runtime = first_runtime()
         path, count = await runtime.async_export(_utc(call.data.get(ATTR_START)), _utc(call.data.get(ATTR_END)))
         return {"path": path, "count": count}
 

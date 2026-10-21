@@ -159,7 +159,17 @@ async def test_a_correction_by_push_fires_the_corrected_event(hass: HomeAssistan
 
     await answer(hass, f"GUESTBOOK_DELIVERY_{entry_id}")
 
-    assert [e.data for e in events] == [{"entry_id": entry_id, "kind": "delivery", "guest_name": None}]
+    assert [e.data for e in events] == [
+        {
+            "entry_id": entry_id,
+            "kind": "delivery",
+            "guest_name": None,
+            "guests": [],
+            "certainty": "uncertain",
+            "start": "2026-10-21T14:00:00+00:00",
+            "end": "2026-10-21T14:00:00+00:00",
+        }
+    ]
 
 
 async def test_answers_for_unknown_entries_and_foreign_actions_are_ignored(

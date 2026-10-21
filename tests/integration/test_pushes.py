@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -254,3 +255,25 @@ async def test_a_renamed_phone_device_still_finds_its_notify_service(hass: HomeA
     await start_guest_visit(hass, setup_guestbook)
 
     assert [c.data["title"] for c in calls] == ["Visit"]
+
+
+async def test_a_push_still_in_flight_is_cancelled_when_the_entry_unloads(hass: HomeAssistant, setup_guestbook):
+    device_id = await add_phone(hass)
+    await set_options(hass, setup_guestbook, phones=[device_id])
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def hanging_push(call):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    hass.services.async_register("notify", PIXEL_SERVICE, hanging_push)
+    await start_guest_visit(hass, setup_guestbook)
+    await asyncio.wait_for(started.wait(), 1)
+
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+
+    await asyncio.wait_for(cancelled.wait(), 1)

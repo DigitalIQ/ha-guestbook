@@ -75,12 +75,18 @@ def _lock(entity_id: str, old: State | None, new: State) -> Signal | None:
     return None
 
 
-def _guest_phone(guest_id: str, entity_id: str, old: State | None, new: State) -> Signal | None:
-    if not _changed(old, new):
+def _guest_phone(guest_id: str, entity_id: str, last_known: str | None, new: State) -> Signal | None:
+    """Compare `home` with the last real state of the tracker (`unavailable` and `unknown` in between don't count).
+
+    Nothing known yet (`last_known` None) counts as away for a phone that turns up at home. A phone that goes away
+    from there leaves a signal too, because a restored visit may still have it as home; the engine drops it when it
+    has no home signal for the phone.
+    """
+    if new.state in STATE_IGNORED or new.state == last_known:
         return None
     if new.state == STATE_HOME:
         return Signal(SignalKind.GUEST_HOME, new.last_changed, entity_id, new.state, guest_id)
-    if old is not None and old.state == STATE_HOME:
+    if last_known is None or last_known == STATE_HOME:
         return Signal(SignalKind.GUEST_AWAY, new.last_changed, entity_id, new.state, guest_id)
     return None
 
@@ -105,6 +111,7 @@ class SignalAdapter:
         self._hass = hass
         self._on_signal = on_signal
         self._trackers: dict[str, str] = {}
+        self._last_known: dict[str, str] = {}  # last real state (not unavailable/unknown) per tracker
         self._unsub_trackers: CALLBACK_TYPE | None = None
         self._converters: dict[str, list[Converter]] = {}
         self._unsub_sources: CALLBACK_TYPE | None = None
@@ -154,6 +161,11 @@ class SignalAdapter:
 
     def _set_trackers(self, guests: list[Guest]) -> None:
         self._trackers = {tracker: guest.id for guest in guests for tracker in guest.trackers}
+        self._last_known = {
+            tracker: state.state
+            for tracker in self._trackers
+            if (state := self._hass.states.get(tracker)) is not None and state.state not in STATE_IGNORED
+        } | {tracker: known for tracker, known in self._last_known.items() if tracker in self._trackers}
 
     def _subscribe_trackers(self) -> None:
         if self._trackers:
@@ -168,10 +180,12 @@ class SignalAdapter:
 
     @callback
     def _handle_tracker_change(self, event: Event[EventStateChangedData]) -> None:
-        old, new = event.data["old_state"], event.data["new_state"]
-        if new is None or (guest_id := self._trackers.get(new.entity_id)) is None:
+        new = event.data["new_state"]
+        if new is None or (guest_id := self._trackers.get(new.entity_id)) is None or new.state in STATE_IGNORED:
             return
-        if signal := _guest_phone(guest_id, new.entity_id, old, new):
+        last_known = self._last_known.get(new.entity_id)
+        self._last_known[new.entity_id] = new.state
+        if signal := _guest_phone(guest_id, new.entity_id, last_known, new):
             self._on_signal(signal)
 
     @callback

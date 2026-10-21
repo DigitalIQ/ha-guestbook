@@ -6,7 +6,7 @@ import json
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-from .models import Entry
+from .models import Entry, EntryKind
 
 
 def expired_entries(entries: Iterable[Entry], now: datetime, retention: timedelta) -> list[Entry]:
@@ -16,10 +16,21 @@ def expired_entries(entries: Iterable[Entry], now: datetime, retention: timedelt
 
 
 def entries_in_range(entries: Iterable[Entry], start: datetime | None, end: datetime | None) -> list[Entry]:
-    """Entries sorted by start, limited to `start <= entry.start < end` (a missing bound is open)."""
-    chosen = (e for e in entries if (start is None or e.start >= start) and (end is None or e.start < end))
+    """Entries sorted by start, limited to `start <= entry.start < end` (a missing bound is open).
+
+    Pending rings are never part of it: they are unfinished and the rule engine may still turn them into something else.
+    """
+    chosen = (
+        e
+        for e in entries
+        if e.kind is not EntryKind.PENDING_RING
+        and (start is None or e.start >= start)
+        and (end is None or e.start < end)
+    )
     return sorted(chosen, key=lambda entry: entry.start)
 
 
 def to_jsonl(entries: Iterable[Entry]) -> str:
-    return "".join(json.dumps(entry.to_dict(), ensure_ascii=False) + "\n" for entry in entries)
+    """One JSON object per line, without the private `rule_state` of the engine (it stays in the storage)."""
+    lines = ({k: v for k, v in entry.to_dict().items() if k != "rule_state"} for entry in entries)
+    return "".join(json.dumps(line, ensure_ascii=False) + "\n" for line in lines)

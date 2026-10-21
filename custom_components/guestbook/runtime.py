@@ -38,7 +38,10 @@ from .core import (
     Reason,
     Settings,
     Signal,
+    effective_end,
+    effective_guests,
     effective_kind,
+    effective_start,
     entries_in_range,
     expired_entries,
     to_jsonl,
@@ -194,7 +197,19 @@ class GuestbookRuntime:
         self._store.async_put(entry)
         if kind in ("resident", "delivery"):
             self._apply(self._engine.close(entry.id, now))
-        self._hass.bus.async_fire(EVENT_VISIT_CORRECTED, {"entry_id": entry.id, "kind": kind, "guest_name": guest_name})
+        end_time = effective_end(entry)
+        self._hass.bus.async_fire(
+            EVENT_VISIT_CORRECTED,
+            {
+                "entry_id": entry.id,
+                "kind": kind,
+                "guest_name": guest_name,
+                "guests": effective_guests(entry),
+                "certainty": entry.certainty.value if entry.certainty else None,
+                "start": effective_start(entry).isoformat(),
+                "end": end_time.isoformat() if end_time else None,
+            },
+        )
         self._notify()
         return entry
 
