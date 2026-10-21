@@ -37,6 +37,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "unknown": "Don't know",
         "save": "Save",
         "placeholder": "Name of the guest",
+        "unknown_guest": "Unknown guest",
     },
     "de": {
         "title_arrival": "Besuch",
@@ -57,12 +58,18 @@ TEXTS: dict[str, dict[str, str]] = {
         "unknown": "Weiß nicht",
         "save": "Speichern",
         "placeholder": "Name des Gastes",
+        "unknown_guest": "Unbekannter Gast",
     },
 }
 
 
 def _texts(language: str) -> dict[str, str]:
     return TEXTS.get(language.split("-")[0].split("_")[0].lower(), TEXTS[DEFAULT_LANGUAGE])
+
+
+def unknown_guest(language: str) -> str:
+    """The word for a visit without known guests."""
+    return _texts(language)["unknown_guest"]
 
 
 def push_title(kind: PushKind, language: str) -> str:

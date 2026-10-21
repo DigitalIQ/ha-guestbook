@@ -144,7 +144,9 @@ class Notifier:
 
     @callback
     def _call(self, service: str, data: dict[str, Any]) -> None:
-        self._hass.async_create_task(self._async_call(service, data))
+        self._entry.async_create_background_task(
+            self._hass, self._async_call(service, data), f"guestbook push {service}"
+        )
 
     async def _async_call(self, service: str, data: dict[str, Any]) -> None:
         try:

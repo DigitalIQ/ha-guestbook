@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
@@ -9,6 +10,8 @@ from homeassistant.helpers.storage import Store
 
 from .const import SAVE_DELAY, STORAGE_KEY, STORAGE_VERSION
 from .core import Entry
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class GuestbookStore:
@@ -22,7 +25,14 @@ class GuestbookStore:
 
     async def async_load(self) -> None:
         data = await self._store.async_load()
-        self._entries = {e.id: e for e in (Entry.from_dict(item) for item in (data or {}).get("entries", []))}
+        self._entries = {}
+        for item in (data or {}).get("entries", []):
+            try:
+                entry = Entry.from_dict(item)
+            except (KeyError, TypeError, ValueError, AttributeError) as err:
+                _LOGGER.warning("Skipping a stored entry that cannot be read (%s: %s)", type(err).__name__, err)
+                continue
+            self._entries[entry.id] = entry
 
     @callback
     def async_put(self, entry: Entry) -> None:

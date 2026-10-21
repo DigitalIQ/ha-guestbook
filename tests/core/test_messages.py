@@ -5,6 +5,7 @@ from custom_components.guestbook.core import (
     parse_action_id,
     push_message,
     push_title,
+    unknown_guest,
 )
 
 
@@ -96,3 +97,10 @@ def test_foreign_or_malformed_action_ids_do_not_parse():
         "guestbook_visit_abc",
     ):
         assert parse_action_id(action) is None
+
+
+def test_unknown_guest_word_follows_the_language():
+    assert unknown_guest("en") == "Unknown guest"
+    assert unknown_guest("de") == "Unbekannter Gast"
+    assert unknown_guest("de-AT") == "Unbekannter Gast"
+    assert unknown_guest("fr") == "Unknown guest"
