@@ -13,6 +13,19 @@ CONF_RESIDENT_SIGNALS = "resident_signals"
 CONF_NAME = "name"
 CONF_TRACKERS = "trackers"
 
+CONF_PHONES = "phones"
+CONF_NOTIFY_ENTITIES = "notify_entities"
+CONF_PUSH_ARRIVAL = "push_arrival"
+CONF_PUSH_END = "push_end"
+CONF_PUSH_CORRECTION = "push_correction"
+CONF_PUSH_UNANSWERED_RING = "push_unanswered_ring"
+PUSH_DEFAULTS = {
+    CONF_PUSH_ARRIVAL: True,
+    CONF_PUSH_END: True,
+    CONF_PUSH_CORRECTION: True,
+    CONF_PUSH_UNANSWERED_RING: False,
+}
+
 SUBENTRY_GUEST = "guest"
 
 ATTR_SOURCE = "source"

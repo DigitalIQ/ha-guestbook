@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -150,3 +151,27 @@ async def make_unanswered_ring(hass: HomeAssistant, freezer) -> str:
     await ring(hass)
     await advance(hass, freezer, timedelta(minutes=6))
     return await ring_uid(hass)
+
+
+async def add_phone(hass: HomeAssistant, device_name: str = "Pixel of Alex", os_name: str = "Android") -> str:
+    """Register a Companion app phone (mobile_app config entry plus device) and return the device id."""
+    mobile_app = MockConfigEntry(
+        domain="mobile_app",
+        title=device_name,
+        data={"device_name": device_name, "os_name": os_name, "webhook_id": device_name.casefold()},
+    )
+    mobile_app.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mobile_app.entry_id,
+        identifiers={("mobile_app", device_name.casefold())},
+        name=device_name,
+    )
+    return device.id
+
+
+async def set_options(hass: HomeAssistant, entry: MockConfigEntry, **options) -> None:
+    """Save the options through the options flow."""
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], options)
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY

@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Options flow: phones, notify entities, switches arrival (on), end (on), correction question (on), unanswered ring (off)
-- [ ] Phones get `notify.mobile_app_<device>`, notify entities get `notify.send_message`
-- [ ] Arrival and end pushes only when no selected resident `person` is `home`
-- [ ] Unanswered ring push when switched on
-- [ ] Push text in the Home Assistant language, text-only pushes include the entry id
+- [x] Options flow: phones, notify entities, switches arrival (on), end (on), correction question (on), unanswered ring (off)
+- [x] Phones get `notify.mobile_app_<device>`, notify entities get `notify.send_message`
+- [x] Arrival and end pushes only when no selected resident `person` is `home`
+- [x] Unanswered ring push when switched on
+- [x] Push text in the Home Assistant language, text-only pushes include the entry id

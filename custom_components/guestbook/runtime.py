@@ -46,6 +46,7 @@ class GuestbookRuntime:
         self._engine = engine
         self._unsub_timer: CALLBACK_TYPE | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._change_listeners: list[Callable[[Change], None]] = []
 
     @callback
     def async_start(self) -> None:
@@ -62,6 +63,12 @@ class GuestbookRuntime:
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    @callback
+    def async_add_change_listener(self, listener: Callable[[Change], None]) -> CALLBACK_TYPE:
+        """Call `listener` with every Change the engine reports (the notifier uses this)."""
+        self._change_listeners.append(listener)
+        return lambda: self._change_listeners.remove(listener)
 
     @callback
     def async_set_guests(self, guests: list[Guest]) -> None:
@@ -195,6 +202,8 @@ class GuestbookRuntime:
             else:
                 self._store.async_put(change.entry)
             self._fire_event(change)
+            for listener in list(self._change_listeners):
+                listener(change)
         self._schedule()
         if changes:
             self._notify()
