@@ -287,6 +287,27 @@
     "missing_source": {
       "title": "Guestbook-Quelle fehlt",
       "description": "Guestbook soll {entity_id} beobachten, aber diese Entität gibt es nicht. Besuche können sie nicht nutzen. Stelle die Entität wieder her oder entferne sie in den Guestbook-Einstellungen aus den Quellen."
+    },
+    "guest_suggestion": {
+      "title": "{name} als Gast anlegen?",
+      "description": "Eine Korrektur nannte {name} als Besucher, aber es gibt keinen Gast mit diesem Namen. Lege den Gast an und verknüpfe das Handy, dann wird der nächste Besuch ohne Klingeln erkannt.",
+      "fix_flow": {
+        "step": {
+          "guest": {
+            "title": "{name} als Gast anlegen",
+            "description": "Legt den Gast {name} an. Handys, die während des Besuchs zu Hause waren und zu keinem Gast gehören, sind vorgewählt. Entferne die, die nicht ihm gehören.",
+            "data": {
+              "trackers": "Handys"
+            },
+            "data_description": {
+              "trackers": "Device-Tracker der Handys des Gasts. Du kannst das leer lassen und Handys später ergänzen."
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "Guestbook ist nicht geladen. Versuche es erneut, wenn es läuft."
+        }
+      }
     }
   }
 }

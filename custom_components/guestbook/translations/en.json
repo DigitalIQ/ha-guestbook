@@ -287,6 +287,27 @@
     "missing_source": {
       "title": "Guestbook source is missing",
       "description": "Guestbook is set to watch {entity_id}, but that entity does not exist. Visits cannot use it. Bring the entity back, or remove it from the sources in the Guestbook settings."
+    },
+    "guest_suggestion": {
+      "title": "Add {name} as a guest?",
+      "description": "A correction named {name} as a visitor, but there is no guest with that name. Create the guest and link the phone, so the next visit is recognised without a ring.",
+      "fix_flow": {
+        "step": {
+          "guest": {
+            "title": "Add {name} as a guest",
+            "description": "Creates the guest {name}. Phones that were home during the visit and belong to no guest are preselected. Remove the ones that are not theirs.",
+            "data": {
+              "trackers": "Phones"
+            },
+            "data_description": {
+              "trackers": "Device trackers of the guest's phones. You can leave this empty and add phones later."
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "Guestbook is not loaded. Try again when it is running."
+        }
+      }
     }
   }
 }

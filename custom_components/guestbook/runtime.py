@@ -232,10 +232,13 @@ class GuestbookRuntime:
         self._notify()
         return entry
 
+    @callback
+    def async_get_entry(self, entry_id: str) -> Entry | None:
+        return next((entry for entry in self._store.entries if entry.id == entry_id), None)
+
     def _entry(self, entry_id: str) -> Entry:
-        for entry in self._store.entries:
-            if entry.id == entry_id:
-                return entry
+        if (entry := self.async_get_entry(entry_id)) is not None:
+            return entry
         raise ServiceValidationError(
             translation_domain=DOMAIN, translation_key="unknown_entry", translation_placeholders={"entry_id": entry_id}
         )
