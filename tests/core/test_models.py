@@ -29,6 +29,7 @@ def test_entry_survives_a_json_round_trip():
             Signal(SignalKind.GUEST_HOME, at("14:01"), "device_tracker.alex_phone", state="home", guest_id="g1"),
         ],
         reason=Reason("ring_then_door", "Ring followed by door opening"),
+        end_reason=Reason("door_then_quiet", "Quiet period after a door opening"),
         correction=Correction(
             kind="visit", time=at("16:00"), source="action", guest_name="Alex", start=at("13:55"), note="Dinner"
         ),

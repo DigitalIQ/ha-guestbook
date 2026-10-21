@@ -83,7 +83,8 @@ class Entry:
     certainty: Certainty | None
     guests: list[dict]          # [{"id": ..., "name": ...}]
     signals: list[Signal]
-    reason: Reason | None
+    reason: Reason | None       # why the entry got its kind (start decision)
+    end_reason: Reason | None   # why a visit ended: door_then_quiet | max_duration
     correction: Correction | None
     notes: list[str]
     settings: dict              # Settings snapshot at decision time
@@ -109,6 +110,8 @@ class Engine:
 ```
 
 Change semantics (ticket 01): a ring opens a `PENDING_RING` entry (`OPENED`). Door or presence inside the ring window turns it into a `VISIT` (`CLASSIFIED`, with the triggering signal); further pending rings are merged into it and reported as `CLOSED`. A pending ring whose window ends is dropped (`CLOSED`, entry kind still `PENDING_RING`); the runtime removes such entries from the store. Ticket 04 replaces the drop with `CLASSIFIED` to `UNANSWERED_RING`. The ring window is half-open: a signal exactly at ring time + `ring_window` is too late. Ids are random UUID hex strings.
+
+Visit end (ticket 02): an open uncertain visit has two deadlines and `next_deadline` returns the earliest of all active entries. The end candidate is the last `DOOR_OPEN` signal at or after `entry_grace` past the signal that made the ring a visit (the guest coming in); it ends the visit once `quiet_period` passes without a further door opening (`CLOSED`, `end` = that door opening, `end_reason` `door_then_quiet`). Otherwise the visit ends at `start + max_duration` (`end_reason` `max_duration`); the maximum wins when the quiet deadline would fall after it. Both half-open: a door opening exactly at the quiet deadline is too late. Deadlines are derived from the entry's signals and the current settings, so an open visit restored from the store needs no extra bookkeeping. While a visit is open, `DOOR_OPEN`, `DOOR_CLOSE`, `PRESENCE_ON`, `PRESENCE_OFF` and `LOCK` signals are appended to it (`SIGNAL_ADDED`); a door opening or presence that turns a pending ring into a visit is consumed by that visit and not appended to other open visits.
 
 A `handle` call first runs `advance(signal.time)`, so deadlines before the signal fire first. Entries returned in Changes are the live objects; the runtime stores them.
 

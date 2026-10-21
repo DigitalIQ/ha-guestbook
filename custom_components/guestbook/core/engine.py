@@ -26,6 +26,17 @@ RING_THEN: dict[SignalKind, Reason] = {
     SignalKind.PRESENCE_ON: Reason("ring_then_presence", "Ring followed by presence within the ring window"),
 }
 
+DOOR_THEN_QUIET = Reason("door_then_quiet", "Door opening followed by the quiet period")
+MAX_DURATION = Reason("max_duration", "No end detected, ended at the maximum duration")
+
+VISIT_SIGNALS = {
+    SignalKind.DOOR_OPEN,
+    SignalKind.DOOR_CLOSE,
+    SignalKind.PRESENCE_ON,
+    SignalKind.PRESENCE_OFF,
+    SignalKind.LOCK,
+}
+
 
 class Engine:
     def __init__(self, settings: Settings, guests: list[Guest], entries: Iterable[Entry] = ()) -> None:
@@ -41,22 +52,29 @@ class Engine:
         changes = self.advance(signal.time)
         if signal.kind is SignalKind.RING:
             changes.append(self._open_pending_ring(signal))
-        elif signal.kind in RING_THEN:
-            changes.extend(self._turn_pending_rings_into_visit(signal))
+        elif signal.kind in RING_THEN and (classified := self._turn_pending_rings_into_visit(signal)):
+            changes.extend(classified)
+        elif signal.kind in VISIT_SIGNALS:
+            changes.extend(self._append_to_open_visits(signal))
         return changes
 
     def advance(self, now: datetime) -> list[Change]:
+        due = sorted(
+            ((deadline, entry) for entry in self._active.values() if (deadline := self._deadline(entry)) <= now),
+            key=lambda item: item[0],
+        )
         changes = []
-        for entry in list(self._active.values()):
-            if entry.kind is EntryKind.PENDING_RING and self._deadline(entry) <= now:
-                del self._active[entry.id]
+        for _, entry in due:
+            del self._active[entry.id]
+            if entry.kind is EntryKind.PENDING_RING:
                 entry.end = self._deadline(entry)
                 changes.append(Change(ChangeKind.CLOSED, entry))
+            else:
+                changes.append(self._end_visit(entry))
         return changes
 
     def next_deadline(self) -> datetime | None:
-        deadlines = [self._deadline(e) for e in self._active.values() if e.kind is EntryKind.PENDING_RING]
-        return min(deadlines, default=None)
+        return min((self._deadline(e) for e in self._active.values()), default=None)
 
     def active_entries(self) -> list[Entry]:
         return list(self._active.values())
@@ -67,9 +85,42 @@ class Engine:
     def set_guests(self, guests: list[Guest]) -> None:
         self._guests = guests
 
-    @staticmethod
-    def _deadline(entry: Entry) -> datetime:
-        return datetime.fromisoformat(entry.rule_state[DEADLINE])
+    def _deadline(self, entry: Entry) -> datetime:
+        if entry.kind is EntryKind.PENDING_RING:
+            return datetime.fromisoformat(entry.rule_state[DEADLINE])
+        return self._visit_end(entry)[0]
+
+    def _visit_end(self, visit: Entry) -> tuple[datetime, datetime, Reason]:
+        """Return the deadline, the end time and the end reason of an open visit."""
+        limit = visit.start + self._settings.max_duration
+        candidate = self._end_candidate(visit)
+        if candidate is not None and candidate.time + self._settings.quiet_period <= limit:
+            return candidate.time + self._settings.quiet_period, candidate.time, DOOR_THEN_QUIET
+        return limit, limit, MAX_DURATION
+
+    def _end_candidate(self, visit: Entry) -> Signal | None:
+        """The last door opening after the guest came in; the visit ends there if the door stays quiet."""
+        entered = next((s for s in visit.signals if s.kind is not SignalKind.RING), None)
+        if entered is None:
+            return None
+        openings = [
+            s
+            for s in visit.signals
+            if s.kind is SignalKind.DOOR_OPEN and s.time >= entered.time + self._settings.entry_grace
+        ]
+        return max(openings, key=lambda s: s.time, default=None)
+
+    def _end_visit(self, visit: Entry) -> Change:
+        _, visit.end, visit.end_reason = self._visit_end(visit)
+        return Change(ChangeKind.CLOSED, visit)
+
+    def _append_to_open_visits(self, signal: Signal) -> list[Change]:
+        changes = []
+        for visit in self._active.values():
+            if visit.kind is EntryKind.VISIT:
+                visit.signals.append(signal)
+                changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
+        return changes
 
     def _open_pending_ring(self, signal: Signal) -> Change:
         entry = Entry(
