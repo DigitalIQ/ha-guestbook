@@ -1,0 +1,32 @@
+# Local test instance for Guestbook development. Not for production. Invented names only.
+default_config:
+
+logger:
+  default: info
+  logs:
+    custom_components.guestbook: debug
+
+# Switches that simulate the fake sources.
+input_boolean:
+  demo_doorbell: { name: Demo doorbell }
+  demo_front_door: { name: Demo front door open }
+  demo_hallway: { name: Demo hallway presence }
+  demo_fingerprint: { name: Demo fingerprint }
+  demo_lock_open: { name: Demo front lock unlocked }
+
+template:
+  - binary_sensor:
+      - { name: Demo doorbell, unique_id: demo_doorbell, state: "{{ is_state('input_boolean.demo_doorbell', 'on') }}" }
+      - { name: Demo front door, unique_id: demo_front_door, device_class: door, state: "{{ is_state('input_boolean.demo_front_door', 'on') }}" }
+      - { name: Demo hallway presence, unique_id: demo_hallway_presence, device_class: occupancy, state: "{{ is_state('input_boolean.demo_hallway', 'on') }}" }
+      - { name: Demo fingerprint, unique_id: demo_fingerprint, state: "{{ is_state('input_boolean.demo_fingerprint', 'on') }}" }
+  - lock:
+      - name: Demo front lock
+        unique_id: demo_front_lock
+        state: "{{ is_state('input_boolean.demo_lock_open', 'off') }}"
+        lock:
+          - action: input_boolean.turn_off
+            target: { entity_id: input_boolean.demo_lock_open }
+        unlock:
+          - action: input_boolean.turn_on
+            target: { entity_id: input_boolean.demo_lock_open }
