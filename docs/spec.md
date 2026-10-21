@@ -181,7 +181,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - An own dashboard card. Display uses existing cards (Calendar Card Pro, Chronicle Card). A card may come later as a separate repository.
 - Self-learning rules. Tuning happens offline with the export.
 - Import of old calendar events from a previous automation.
-- Detection of the U200 fingerprint itself. Guestbook offers the generic resident signal input; how a specific lock produces it is the user's setup.
+- Detection of a specific lock's fingerprint reader. Guestbook offers the generic resident signal input; how a specific lock produces it is the user's setup.
 - Unknown phones as visit triggers. Only phones linked to a guest start visits.
 - Cloud sync, telemetry, multi-home setups.
 - Editing events in the calendar UI. Changes go through the actions and the correction push.
