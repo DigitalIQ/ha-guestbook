@@ -173,13 +173,22 @@ async def s1_ring_door_delivery(h: Harness):
     h.check(question is not None, "iOS question push carries data.actions")
     if question:
         ids = [a["action"] for a in question["data"]["actions"]]
-        h.check(len(ids) == 4 and all(i.endswith(entry_id) for i in ids), "iOS has 4 buttons for this entry", ids)
+        tokens = {i.rsplit(entry_id + "_", 1)[-1] for i in ids}
+        h.check(len(ids) == 4 and all(f"_{entry_id}_" in i for i in ids) and len(tokens) == 1 and "" not in tokens,
+                "iOS has 4 buttons for this entry, all with the same token", ids)
         h.check(question["data"].get("tag") == entry_id, "tag is the entry id")
         visit_btn = next(a for a in question["data"]["actions"] if a["action"].startswith("GUESTBOOK_VISIT_"))
         h.check(visit_btn.get("behavior") == "textInput", "VISIT button asks for text", visit_btn)
     aq = next((p for p in android if p.get("data", {}).get("actions")), None)
     h.check(aq is not None and len(aq["data"]["actions"]) == 3, "Android gets 3 buttons", aq and len(aq["data"]["actions"]))
     h.check(any(p.get("title") == "Visit" for p in ios), "arrival push title", [p.get("title") for p in ios])
+
+    # an answer with a wrong token is ignored, the real one counts
+    t1 = now()
+    await h.rest("POST", "/api/events/mobile_app_notification_action", {"action": f"GUESTBOOK_RESIDENT_{entry_id}_wrongtoken"})
+    await asyncio.sleep(2)
+    h.check(not h.evs("guestbook_visit_corrected", t1), "answer with a wrong token is ignored")
+    h.check((await h.state("binary_sensor.guestbook_visit_active"))["state"] == "on", "visit still open after the wrong token")
 
     # answer Delivery
     t1 = now()
@@ -192,6 +201,10 @@ async def s1_ring_door_delivery(h: Harness):
     h.check(len(rings) == 1 and rings[0].get("summary") in ("Delivery", "Lieferung"), "entry is in rings calendar as Delivery", rings and rings[0].get("summary"))
     h.check(h.evs("guestbook_visit_ended", t1, reason="corrected"), "visit closed with reason corrected")
     h.check((await h.state("binary_sensor.guestbook_visit_active"))["state"] == "off", "visit_active off after correction")
+    t2 = now()
+    await h.answer(question, "RESIDENT", t2)  # the same token a second time
+    await asyncio.sleep(2)
+    h.check(not h.evs("guestbook_visit_corrected", t2), "a used token is ignored")
     await h.toggle("demo_front_door", False)
     h.entry["s1"] = entry_id
 
