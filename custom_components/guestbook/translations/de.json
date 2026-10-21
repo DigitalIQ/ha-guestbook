@@ -26,6 +26,30 @@
       "single_instance_allowed": "Guestbook ist bereits eingerichtet. Es ist nur eine Instanz erlaubt."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pushes",
+        "description": "Wähle, wer Pushes bekommt und welche Pushes gesendet werden. Companion-App-Handys bekommen Schaltflächen. Notify-Entitäten bekommen reinen Text mit der Eintrags-ID.",
+        "data": {
+          "phones": "Handys",
+          "notify_entities": "Nur-Text-Ziele",
+          "push_arrival": "Ankunft",
+          "push_end": "Ende des Besuchs",
+          "push_correction": "Korrekturfrage",
+          "push_unanswered_ring": "Unbeantwortetes Klingeln"
+        },
+        "data_description": {
+          "phones": "Handys mit der Home-Assistant-Companion-App. Nur sie bekommen die Schaltflächen der Korrekturfrage.",
+          "notify_entities": "Notify-Entitäten, zum Beispiel ein Messenger. Sie bekommen nur Text.",
+          "push_arrival": "Push, wenn ein Besuch beginnt und kein Bewohner zu Hause ist.",
+          "push_end": "Push, wenn ein Besuch endet und kein Bewohner zu Hause ist.",
+          "push_correction": "Bei jedem unsicheren Besuch fragen, was es war, auch wenn ein Bewohner zu Hause ist.",
+          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat."
+        }
+      }
+    }
+  },
   "config_subentries": {
     "guest": {
       "initiate_flow": {

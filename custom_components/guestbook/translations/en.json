@@ -26,6 +26,30 @@
       "single_instance_allowed": "Guestbook is already set up. Only one instance is allowed."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pushes",
+        "description": "Choose who gets pushes and which pushes are sent. Companion app phones get buttons. Notify entities get plain text with the entry id.",
+        "data": {
+          "phones": "Phones",
+          "notify_entities": "Text-only targets",
+          "push_arrival": "Arrival",
+          "push_end": "End of visit",
+          "push_correction": "Correction question",
+          "push_unanswered_ring": "Unanswered ring"
+        },
+        "data_description": {
+          "phones": "Phones with the Home Assistant Companion app. Only these get the buttons of the correction question.",
+          "notify_entities": "Notify entities, for example a messenger. They get text only.",
+          "push_arrival": "Push when a visit starts and none of the residents is home.",
+          "push_end": "Push when a visit ends and none of the residents is home.",
+          "push_correction": "Ask for every uncertain visit what it was, also when a resident is home.",
+          "push_unanswered_ring": "Push when someone rang and nobody opened."
+        }
+      }
+    }
+  },
   "config_subentries": {
     "guest": {
       "initiate_flow": {

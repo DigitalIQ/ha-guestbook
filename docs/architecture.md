@@ -12,6 +12,7 @@ custom_components/guestbook/
     engine.py           Engine (the rule core)
     effective.py        EffectiveKind, effective_kind/guests/start/end (entry + correction)
     render.py           renderer: render_description, render_title (entry + language -> text)
+    messages.py         push texts and buttons: PushKind, push_title, push_message, correction_actions, action_id, parse_action_id
   __init__.py           setup/unload, wires store, engine, adapter, timers, platforms
   const.py              DOMAIN, config keys, defaults, event names
   config_flow.py        config flow, options flow, guest subentry flow
@@ -21,7 +22,7 @@ custom_components/guestbook/
   calendar.py           Visits and Rings calendars (shared base class; Visits shows effective kind visit, Rings shows effective kinds unanswered_ring and delivery)
   sensor.py / binary_sensor.py
   services.py           actions
-  notifier.py           pushes and correction answers
+  notifier.py           Notifier: pushes and correction answers (ticket 10, 11)
   repairs.py            repair issues and fix flows
   services.yaml, strings.json, translations/{en,de}.json, manifest.json, brand/
 tests/
@@ -173,6 +174,21 @@ Sensors (ticket 06): `entity.py` holds `GuestbookEntity` (has_entity_name, no po
 ## Runtime
 
 `GuestbookRuntime` lives in `entry.runtime_data`. It owns the engine and the store, turns adapter signals into `engine.handle`, schedules one timer at `engine.next_deadline()`, saves changed entries, fires bus events, and calls registered listeners (`async_add_listener(cb) -> unsub`) so entities update. `async_open_visits()` returns the open visits, most recent first. Corrections and additions go through runtime methods, not straight to the store.
+
+## Pushes (ticket 10)
+
+Options (`entry.options`, saved by the options flow `GuestbookOptionsFlow`, one step `init`; ticket 14 adds the rule numbers and sources to it): `phones` (list of device ids, `DeviceSelector` for integration `mobile_app`, multiple), `notify_entities` (list of `notify` entity ids), `push_arrival` (on), `push_end` (on), `push_correction` (on), `push_unanswered_ring` (off). Keys and defaults are in `const.py` (`PUSH_DEFAULTS`). The notifier reads the options at send time, so a change needs no reload; the entry update listener ignores updates that leave the guest list as it was, so options changes never touch open visits.
+
+`Notifier(hass, entry, runtime)` registers with `runtime.async_add_change_listener(cb(Change))`, which receives every Change the runtime applies. Triggers:
+
+- Arrival: `OPENED` or `CLASSIFIED` change of an open visit (also a guest phone already home at startup).
+- End: `CLOSED` change of a visit, except when `end_reason` is `corrected`. A visit reclassified as a resident arrival is not a visit any more and gets no end push.
+- Unanswered ring: `CLASSIFIED` change to `UNANSWERED_RING`.
+- Arrival and end only when none of the config entry's `residents` (`person` entities) is `home`; with no residents selected they are always sent. The correction question and the unanswered ring ignore residents.
+
+Targets: a phone is a `mobile_app` device. The notifier finds the `mobile_app` config entry of the device and calls the legacy service `notify.mobile_app_<slugify(device_name)>` with the `device_name` of that config entry (the name HA core builds the service from; the device registry name may have been renamed). If the device is no longer a mobile_app device or the service does not exist, the phone is skipped with a debug log. Phone payload: `title`, `message`. Notify entities get one `notify.send_message` call (`entity_id` list, `title`, `message`); the message ends with `Entry id: <id>` (`Eintrags-ID` in German). Calls run as tasks; a `HomeAssistantError` is logged as a warning and does not stop the other targets.
+
+Texts live in `core/messages.py` (`de` and `en`, other languages fall back to `en`, region ignored) and use `hass.config.language`: `push_title(kind, language)`, `push_message(kind, language, guests, entry_id=None)` (with an `entry_id` the id is appended; for the correction question also a hint to use `guestbook.correct_entry`).
 
 ## Storage
 
