@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
@@ -140,9 +140,10 @@ class SourceMonitor:
 class GuestSuggestions:
     """Offers to create a guest profile when a correction names a visitor who has none."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, visit_exists: Callable[[str], bool]) -> None:
         self._hass = hass
         self._entry = entry
+        self._visit_exists = visit_exists
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
@@ -151,7 +152,7 @@ class GuestSuggestions:
 
     @callback
     def async_cleanup(self) -> None:
-        """Delete the suggestions of this entry for names that have a guest profile now."""
+        """Delete the suggestions of this entry for names that have a guest profile now or whose visit is gone."""
         names = self._guest_names()
         for (domain, issue_id), found in list(ir.async_get(self._hass).issues.items()):
             data = found.data or {}
@@ -159,7 +160,10 @@ class GuestSuggestions:
                 domain == DOMAIN
                 and issue_id.startswith(f"{GUEST_SUGGESTION}_")
                 and data.get("entry_id") == self._entry.entry_id
-                and normalize_name(str(data.get("name", ""))) in names
+                and (
+                    normalize_name(str(data.get("name", ""))) in names
+                    or (data.get("visit_id") and not self._visit_exists(data["visit_id"]))
+                )
             ):
                 ir.async_delete_issue(self._hass, DOMAIN, issue_id)
 

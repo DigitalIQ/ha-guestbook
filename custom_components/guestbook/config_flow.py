@@ -42,6 +42,7 @@ from .const import (
     PUSH_DEFAULTS,
     SUBENTRY_GUEST,
 )
+from .core import clean_guest_name
 from .settings import rule_defaults
 
 
@@ -119,14 +120,14 @@ PUSH_SCHEMA = probatio.Schema(
 class GuestSubentryFlow(ConfigSubentryFlow):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         if user_input is not None:
-            name = user_input[CONF_NAME].strip()
+            name = clean_guest_name(user_input[CONF_NAME])
             return self.async_create_entry(title=name, data={**user_input, CONF_NAME: name})
         return self.async_show_form(step_id="user", data_schema=GUEST_SCHEMA)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         subentry = self._get_reconfigure_subentry()
         if user_input is not None:
-            name = user_input[CONF_NAME].strip()
+            name = clean_guest_name(user_input[CONF_NAME])
             return self.async_update_and_abort(
                 self._get_entry(), subentry, title=name, data={**user_input, CONF_NAME: name}
             )

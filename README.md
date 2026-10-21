@@ -102,13 +102,13 @@ With the default names, Guestbook creates these entities. Your entity ids may di
 | --- | --- |
 | `binary_sensor.guestbook_visit_active` | On while any visit is open. |
 | `sensor.guestbook_current_visit` | The guests of the current visit, or "Unknown guest" ("Unbekannter Gast" in German) when nobody is known. Unknown while no visit is open. Attributes: `entry_id`, `start`, `certainty`. Attributes stay small on purpose, so the recorder keeps storing them. |
-| `binary_sensor.<guest>_visiting` | One per guest, on while that guest is visiting. |
+| `binary_sensor.<guest>_visiting` | One per guest, on while that guest is visiting. It goes off when all the guest's phones have been away for the phone grace period, even if the visit goes on with another guest. |
 | `calendar.guestbook_visits` | One event per visit. |
 | `calendar.guestbook_rings` | Unanswered rings and entries you corrected to a delivery. |
 
 ## Calendars
 
-A visit is one calendar event from arrival to departure. An ongoing visit ends "now". The title names the guests (`Visit: Alex`) or says `Visit (uncertain)` when nobody is known. The description holds the full chronological log with no length limit, and presence changes are condensed to one line per sensor and stretch, for example `Hall presence 14:02–14:40`. The texts follow your Home Assistant language (English or German).
+A visit is one calendar event from arrival to departure. An ongoing visit ends "now". The title names the guests (`Visit: Alex`) or says `Visit (uncertain)` when nobody is known. The description holds the chronological log with presence changes are condensed to one line per sensor and stretch, for example `Hall presence 14:02–14:40`. An entry keeps at most 1000 signals. A visit that runs for weeks drops its oldest door, presence and lock signals first (never rings, guest phones or the signal that started the visit), and the description ends with `… N older signals not kept`. The texts follow your Home Assistant language (English or German).
 
 Resident arrivals appear in no calendar. They stay in the storage and the export.
 
@@ -118,6 +118,8 @@ Both calendars are standard Home Assistant `calendar` entities, so any calendar 
 - **Chronicle Card**: select `calendar.guestbook_visits` as the source. A separate card for `calendar.guestbook_rings` keeps deliveries out of the visit list.
 
 Both cards are separate projects. See their documentation for the exact options.
+
+Guest names are trimmed and cut to 64 characters everywhere (guest profile, `guest_name`, `add_visit`, text reply of the push).
 
 ## Bus events
 
@@ -138,7 +140,7 @@ All times are ISO strings in UTC. `guests` is a list of names.
 | --- | --- | --- |
 | `guestbook.resident_unlock` | `source` (optional text) | Reports that a resident is arriving, so a ring close to it is not a visit. |
 | `guestbook.correct_entry` | `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note` | Tells Guestbook what an entry really was. Returns the corrected entry when called with a response. |
-| `guestbook.add_visit` | `guests` (names), `start`, `end`, optional `note` | Logs a visit the sensors missed. |
+| `guestbook.add_visit` | `guests` (a name or a list of names, none of them empty), `start`, `end`, optional `note` | Logs a visit the sensors missed. |
 | `guestbook.add_note` | `entry_id`, `note` | Adds a free-text note to an entry. |
 | `guestbook.export` | optional `start`, `end` | Writes the entries to a JSONL file. Returns `path` and `count`. |
 
@@ -173,7 +175,7 @@ Text-only targets cannot have buttons. Their message ends with `Entry id: <id>`.
 
 ## Export
 
-Run the action `guestbook.export`, optionally with `start` and `end`. It writes `/config/guestbook/guestbook-<UTC time>.jsonl`. The file has one entry per line, so you can hand it to an AI assistant to tune the rules. It contains every stored entry in the range, including open visits. Rings still waiting for their ring window to end are not exported.
+Run the action `guestbook.export`, optionally with `start` and `end`. It writes `/config/guestbook/guestbook-<UTC time>.jsonl` (a second export in the same second gets `-2`, `-3`, and never overwrites a file). The file has one entry per line, so you can hand it to an AI assistant to tune the rules. It contains every stored entry in the range, including open visits. `dropped_signals` counts the signals an entry dropped because of the cap; `rule_state` and the push token are not exported. Rings still waiting for their ring window to end are not exported.
 
 An entry looks like this (shortened, invented data):
 

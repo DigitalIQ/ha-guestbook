@@ -6,6 +6,7 @@ from .engine import Engine
 from .manual import manual_visit
 from .messages import PushKind, action_id, correction_actions, parse_action_id, push_message, push_title, unknown_guest
 from .models import (
+    MAX_GUEST_NAME,
     Certainty,
     Change,
     ChangeKind,
@@ -18,11 +19,13 @@ from .models import (
     Settings,
     Signal,
     SignalKind,
+    clean_guest_name,
     normalize_name,
 )
 from .render import render_description, render_title
 
 __all__ = [
+    "MAX_GUEST_NAME",
     "Certainty",
     "Change",
     "ChangeKind",
@@ -39,6 +42,7 @@ __all__ = [
     "Signal",
     "SignalKind",
     "action_id",
+    "clean_guest_name",
     "correction_actions",
     "effective_end",
     "effective_guests",
