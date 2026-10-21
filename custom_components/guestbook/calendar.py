@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import GuestbookConfigEntry
-from .core import Certainty, Entry, EntryKind
+from .core import Entry, EntryKind, render_description, render_title
 from .entity import GuestbookEntity
 
 OPEN_ENTRY_MARGIN = timedelta(minutes=1)
@@ -51,31 +51,28 @@ class GuestbookCalendar(GuestbookEntity, CalendarEntity):
         return sorted((e for e in events if e.start < end_date and e.end > start_date), key=lambda e: e.start)
 
     def _to_event(self, entry: Entry, now: datetime) -> CalendarEvent:
+        language = self.hass.config.language
         return CalendarEvent(
             start=entry.start,
             end=entry.end or max(now, entry.start),
-            summary=self._summary(entry),
-            description=entry.reason.detail if entry.reason else None,
+            summary=render_title(entry, language),
+            description=self._description(entry, language) or None,
             uid=entry.id,
         )
 
-    def _summary(self, entry: Entry) -> str:
-        raise NotImplementedError
+    def _description(self, entry: Entry, language: str) -> str:
+        names = {}
+        for signal in entry.signals:
+            if signal.source not in names and (state := self.hass.states.get(signal.source)) is not None:
+                names[signal.source] = state.name
+        return render_description(entry, language, names, dt_util.get_default_time_zone())
 
 
 class VisitsCalendar(GuestbookCalendar):
     entry_kind = EntryKind.VISIT
     unique_suffix = "visits"
 
-    def _summary(self, entry: Entry) -> str:
-        if entry.guests:
-            return "Visit: " + ", ".join(guest["name"] for guest in entry.guests)
-        return "Visit (uncertain)" if entry.certainty is Certainty.UNCERTAIN else "Visit"
-
 
 class RingsCalendar(GuestbookCalendar):
     entry_kind = EntryKind.UNANSWERED_RING
     unique_suffix = "rings"
-
-    def _summary(self, entry: Entry) -> str:
-        return "Unanswered ring"

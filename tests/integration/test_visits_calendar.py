@@ -5,7 +5,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.guestbook.const import CONF_DOORBELLS
 
-from .conftest import DOOR, DOORBELL, PRESENCE, advance, get_visits, ring
+from .conftest import DOOR, DOORBELL, PRESENCE, advance, get_rings, get_visits, ring
 
 
 async def test_ring_then_door_opening_shows_an_uncertain_visit(hass: HomeAssistant, setup_guestbook, freezer):
@@ -179,3 +179,52 @@ async def test_rings_merged_into_a_visit_leave_one_stored_entry(hass: HomeAssist
     assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
     (stored,) = hass_storage["guestbook.entries"]["data"]["entries"]
     assert stored["kind"] == "visit"
+
+
+async def test_description_holds_the_full_log_with_condensed_presence(hass: HomeAssistant, setup_guestbook, freezer):
+    await hass.config.async_set_time_zone("Europe/Berlin")
+    hass.states.async_set(DOOR, "off", {"friendly_name": "Front door"})
+    hass.states.async_set(PRESENCE, "off", {"friendly_name": "Hall presence"})
+    await ring(hass)
+    await advance(hass, freezer, timedelta(minutes=1))
+    hass.states.async_set(DOOR, "on", {"friendly_name": "Front door"})
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=2))
+    hass.states.async_set(PRESENCE, "on", {"friendly_name": "Hall presence"})
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(PRESENCE, "off", {"friendly_name": "Hall presence"})
+    await hass.async_block_till_done()
+
+    (visit,) = await get_visits(hass)
+
+    assert visit["description"].splitlines() == [
+        "16:00 front doorbell: ring",
+        "16:01 Front door: opened",
+        "Hall presence 16:03–16:33",
+        "",
+        "Started: ring followed by a door opening or presence",
+    ]
+
+
+async def test_title_and_description_follow_the_home_assistant_language(hass: HomeAssistant, setup_guestbook, freezer):
+    hass.config.language = "de"
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+
+    (visit,) = await get_visits(hass)
+
+    assert visit["summary"] == "Besuch (unsicher)"
+    assert visit["description"].splitlines()[-1] == "Beginn: Klingeln, danach Türöffnung oder Anwesenheit"
+    assert hass.states.get("calendar.guestbook_visits").attributes["message"] == "Besuch (unsicher)"
+
+
+async def test_unanswered_ring_title_is_translated(hass: HomeAssistant, setup_guestbook, freezer):
+    hass.config.language = "de"
+    await ring(hass)
+    await advance(hass, freezer, timedelta(minutes=6))
+
+    (event,) = await get_rings(hass)
+
+    assert event["summary"] == "Klingeln ohne Einlass"

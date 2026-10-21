@@ -14,6 +14,7 @@ from .models import (
     Signal,
     SignalKind,
 )
+from .render import render_description, render_title
 
 __all__ = [
     "Certainty",
@@ -28,4 +29,6 @@ __all__ = [
     "Settings",
     "Signal",
     "SignalKind",
+    "render_description",
+    "render_title",
 ]

@@ -10,7 +10,7 @@ custom_components/guestbook/
     __init__.py         re-exports the public names below
     models.py           Signal, SignalKind, Entry, EntryKind, Certainty, Reason, Correction, Guest, Settings, Change, ChangeKind
     engine.py           Engine (the rule core)
-    render.py           description renderer (entry + language -> text)
+    render.py           renderer: render_description, render_title (entry + language -> text)
   __init__.py           setup/unload, wires store, engine, adapter, timers, platforms
   const.py              DOMAIN, config keys, defaults, event names
   config_flow.py        config flow, options flow, guest subentry flow
@@ -122,6 +122,14 @@ Resident signals (ticket 03): the engine keeps resident signals of the last `res
 Guest phones (ticket 05): `GUEST_HOME` / `GUEST_AWAY` signals carry `source` = the tracker entity id and `guest_id`; a signal for an unknown guest is ignored. `GUEST_HOME` with no open visit opens a certain `VISIT` (`OPENED`, `reason` `guest_phone`, one guest). With an open visit the guest joins it (`SIGNAL_ADDED`): an open certain visit is preferred, an open uncertain one becomes `CERTAIN` and keeps its start decision (`reason`). A guest already in an open visit only gets the signal appended. `GUEST_AWAY` is appended to every open visit that contains the guest. A certain visit has no max duration and ignores door quiet periods: it is open while the last signal of any known tracker is `GUEST_HOME`. Once every tracker is away its deadline is the latest away time plus `phone_grace`, and it ends there (`CLOSED`, `end` = that away time, `end_reason` `guests_left`). A phone back before the deadline cancels it; at the deadline it is too late (half-open), the old visit closes and a new one opens. Trackers no longer listed in the guests count as away, so `set_guests` can make a visit due; the caller advances afterwards. A ring plus door or presence while a certain visit is open does not open an uncertain visit: the pending rings are reported as `CLOSED` and the door or presence signal is appended to the certain visit (`SIGNAL_ADDED`). A resident signal never turns a certain visit into a resident arrival.
 
 Guest already home (lifecycle fix): `guest_present(guest_id, tracker, now)` is for a phone that is `home` at startup or when its guest is added, without a state change. It does nothing for an unknown guest or when an open visit already has the guest (restored visits are not duplicated). Otherwise it behaves like `GUEST_HOME` at `now` (joins an open visit), but a visit it opens has `reason` `guest_phone_at_start`. The runtime calls it for every guest with a `home` tracker in `async_start` and `async_set_guests`.
+
+## Renderer (ticket 07)
+
+`core/render.py`, pure functions, texts in `de` and `en` (a region suffix is ignored, other languages fall back to `en`).
+
+- `render_description(entry, language, names, tz) -> str`: `names` maps entity id to friendly name (missing ids show the entity id), `tz` is a `tzinfo`. One line per signal in time order, `HH:MM <name>: <what>` in local time. The source `action` reads "resident_unlock action". Presence on/off of one sensor is condensed to `<name> HH:MM–HH:MM` (placed at the on time); a stretch still on reads `<name> from HH:MM`, an off without an on in the entry reads `<name> until HH:MM`. No length limit. After a blank line: start reason, end reason, the correction (with kind, guest, start, end, note) and the notes; reason codes are translated, unknown codes show the reason detail.
+- `render_title(entry, language)`: `Visit: Alex, Sam`, `Visit (uncertain)`, `Visit`, `Unanswered ring` and the German counterparts.
+- The calendars call both with `hass.config.language`, the default time zone and the friendly names of the signal sources (`State.name`).
 
 ## Home Assistant APIs
 
