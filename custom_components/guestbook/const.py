@@ -26,6 +26,14 @@ PUSH_DEFAULTS = {
     CONF_PUSH_UNANSWERED_RING: False,
 }
 
+CONF_RING_WINDOW = "ring_window"
+CONF_RESIDENT_WINDOW = "resident_window"
+CONF_QUIET_PERIOD = "quiet_period"
+CONF_ENTRY_GRACE = "entry_grace"
+CONF_PHONE_GRACE = "phone_grace"
+CONF_MAX_DURATION = "max_duration"
+CONF_RETENTION = "retention"
+
 SUBENTRY_GUEST = "guest"
 
 ATTR_SOURCE = "source"
@@ -33,6 +41,7 @@ SERVICE_RESIDENT_UNLOCK = "resident_unlock"
 SERVICE_CORRECT_ENTRY = "correct_entry"
 SERVICE_ADD_VISIT = "add_visit"
 SERVICE_ADD_NOTE = "add_note"
+SERVICE_EXPORT = "export"
 ATTR_ENTRY_ID = "entry_id"
 ATTR_KIND = "kind"
 ATTR_GUEST_NAME = "guest_name"
@@ -41,6 +50,8 @@ ATTR_START = "start"
 ATTR_END = "end"
 ATTR_NOTE = "note"
 CORRECTION_KINDS = ("resident", "delivery", "visit", "unknown")
+EXPORT_DIR = "guestbook"
+PURGE_INTERVAL = timedelta(days=1)
 SOURCE_ACTION = "action"
 SOURCE_PUSH = "push"
 

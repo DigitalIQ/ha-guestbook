@@ -24,6 +24,7 @@ from .const import (
     SERVICE_ADD_NOTE,
     SERVICE_ADD_VISIT,
     SERVICE_CORRECT_ENTRY,
+    SERVICE_EXPORT,
     SERVICE_RESIDENT_UNLOCK,
 )
 from .core import Signal, SignalKind, effective_end, effective_guests, effective_start
@@ -51,6 +52,7 @@ ADD_VISIT_SCHEMA = probatio.Schema(
 ADD_NOTE_SCHEMA = probatio.Schema(
     {probatio.Required(ATTR_ENTRY_ID): cv.string, probatio.Required(ATTR_NOTE): cv.string}
 )
+EXPORT_SCHEMA = probatio.Schema({probatio.Optional(ATTR_START): cv.datetime, probatio.Optional(ATTR_END): cv.datetime})
 
 
 def _utc(value):
@@ -104,6 +106,11 @@ def async_register_services(hass: HomeAssistant) -> None:
         (runtime,) = runtimes()
         runtime.async_add_note(call.data[ATTR_ENTRY_ID], call.data[ATTR_NOTE])
 
+    async def export(call: ServiceCall) -> dict[str, Any]:
+        (runtime,) = runtimes()
+        path, count = await runtime.async_export(_utc(call.data.get(ATTR_START)), _utc(call.data.get(ATTR_END)))
+        return {"path": path, "count": count}
+
     hass.services.async_register(DOMAIN, SERVICE_RESIDENT_UNLOCK, resident_unlock, schema=RESIDENT_UNLOCK_SCHEMA)
     hass.services.async_register(
         DOMAIN,
@@ -114,3 +121,6 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(DOMAIN, SERVICE_ADD_VISIT, add_visit, schema=ADD_VISIT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_ADD_NOTE, add_note, schema=ADD_NOTE_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT, export, schema=EXPORT_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    )

@@ -37,7 +37,8 @@
           "push_arrival": "Arrival",
           "push_end": "End of visit",
           "push_correction": "Correction question",
-          "push_unanswered_ring": "Unanswered ring"
+          "push_unanswered_ring": "Unanswered ring",
+          "retention": "Keep entries for (days)"
         },
         "data_description": {
           "phones": "Phones with the Home Assistant Companion app. Only these get the buttons of the correction question.",
@@ -45,7 +46,8 @@
           "push_arrival": "Push when a visit starts and none of the residents is home.",
           "push_end": "Push when a visit ends and none of the residents is home.",
           "push_correction": "Ask for every uncertain visit what it was, also when a resident is home.",
-          "push_unanswered_ring": "Push when someone rang and nobody opened."
+          "push_unanswered_ring": "Push when someone rang and nobody opened.",
+          "retention": "Closed entries older than this are deleted at startup and once a day. Open visits are never deleted."
         }
       }
     }
@@ -195,6 +197,20 @@
         "note": {
           "name": "Note",
           "description": "The text to add."
+        }
+      }
+    },
+    "export": {
+      "name": "Export entries",
+      "description": "Writes the entries as JSON lines, one entry per line, to the guestbook folder in the configuration directory. Returns the file path and the number of entries.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "Only entries that start at or after this time. Without it the export begins with the oldest entry."
+        },
+        "end": {
+          "name": "End",
+          "description": "Only entries that start before this time. Without it the export runs to the newest entry."
         }
       }
     }

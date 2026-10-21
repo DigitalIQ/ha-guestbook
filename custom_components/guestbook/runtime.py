@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -19,6 +21,8 @@ from .const import (
     EVENT_VISIT_ENDED,
     EVENT_VISIT_EVENT,
     EVENT_VISIT_STARTED,
+    EXPORT_DIR,
+    PURGE_INTERVAL,
     SOURCE_ACTION,
 )
 from .core import (
@@ -32,8 +36,12 @@ from .core import (
     EntryKind,
     Guest,
     Reason,
+    Settings,
     Signal,
     effective_kind,
+    entries_in_range,
+    expired_entries,
+    to_jsonl,
 )
 from .store import GuestbookStore
 
@@ -45,19 +53,67 @@ class GuestbookRuntime:
         self._store = store
         self._engine = engine
         self._unsub_timer: CALLBACK_TYPE | None = None
+        self._unsub_purge: CALLBACK_TYPE | None = None
         self._listeners: list[Callable[[], None]] = []
         self._change_listeners: list[Callable[[Change], None]] = []
 
     @callback
     def async_start(self) -> None:
         now = dt_util.utcnow()
+        self.async_purge(now)
         self._apply(self._engine.advance(now))
         self._report_guests_away(now)
         self._announce_guests_at_home()
+        self._unsub_purge = async_track_time_interval(self._hass, self.async_purge, PURGE_INTERVAL)
 
     async def async_stop(self) -> None:
         self._cancel_timer()
+        if self._unsub_purge:
+            self._unsub_purge()
+            self._unsub_purge = None
         await self._store.async_flush()
+
+    @property
+    def settings(self) -> Settings:
+        return self._engine.settings
+
+    @callback
+    def async_purge(self, now: datetime | None = None) -> int:
+        """Delete the closed entries older than the retention; open entries stay. Returns how many went."""
+        expired = expired_entries(self._store.entries, now or dt_util.utcnow(), self._engine.settings.retention)
+        for entry in expired:
+            self._store.async_remove(entry.id)
+        if expired:
+            self._notify()
+        return len(expired)
+
+    async def async_export(self, start: datetime | None = None, end: datetime | None = None) -> tuple[str, int]:
+        """Write the entries with `start <= entry.start < end` as JSONL under the config directory."""
+        entries = entries_in_range(self._store.entries, start, end)
+        stem = f"guestbook-{dt_util.utcnow():%Y%m%dT%H%M%SZ}"
+        path = await self._hass.async_add_executor_job(
+            self._write, Path(self._hass.config.path(EXPORT_DIR)), stem, to_jsonl(entries)
+        )
+        return str(path), len(entries)
+
+    @staticmethod
+    def _write(directory: Path, stem: str, content: str) -> Path:
+        """Write `<stem>.jsonl`; a second export in the same second gets `-2`, `-3`, ... instead of overwriting."""
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{stem}.jsonl"
+        for number in itertools.count(2):
+            if not path.exists():
+                break
+            path = directory / f"{stem}-{number}.jsonl"
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    @callback
+    def async_set_settings(self, settings: Settings) -> None:
+        """Apply new rule numbers. Open visits keep running; their deadlines are derived from the new numbers."""
+        self._engine.set_settings(settings)
+        self._apply(self._engine.advance(dt_util.utcnow()))
+        self._notify()
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:

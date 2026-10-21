@@ -12,10 +12,12 @@ custom_components/guestbook/
     engine.py           Engine (the rule core)
     effective.py        EffectiveKind, effective_kind/guests/start/end (entry + correction)
     render.py           renderer: render_description, render_title (entry + language -> text)
+    archive.py          expired_entries, entries_in_range, to_jsonl (retention purge and export selection)
     messages.py         push texts and buttons: PushKind, push_title, push_message, correction_actions, action_id, parse_action_id
   __init__.py           setup/unload, wires store, engine, adapter, timers, platforms
   const.py              DOMAIN, config keys, defaults, event names
   config_flow.py        config flow, options flow, guest subentry flow
+  settings.py           entry options (minutes, hours, days) <-> core Settings
   store.py              GuestbookStore (HA Store wrapper, purge)
   runtime.py            GuestbookRuntime: owns engine + store, applies Changes, fires events, notifies listeners
   adapter.py            state listeners -> Signal (doorbells, doors, presence, locks, resident signals)
@@ -197,6 +199,12 @@ The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CL
 - Phone payload: `title`, `message`, `data.tag` = the entry id (a later push with the same tag replaces it) and `data.actions` from `correction_actions(language, entry_id, android=...)`: ids `GUESTBOOK_<KIND>_<entry_id>` for `RESIDENT`, `DELIVERY`, `VISIT`, `UNKNOWN` (titles "That was me", "Delivery", "Visit", "Don't know" and the German ones). `VISIT` has `behavior: textInput`, `textInputButtonTitle` and `textInputPlaceholder`. Android gets the first three. The OS comes from `os_name` in the data of the phone's `mobile_app` config entry (the registration; `Android` or `iOS`), compared case-insensitively.
 - Notify entities get the text with `Entry id: <id>` and the hint to answer with `guestbook.correct_entry`; no buttons.
 - The notifier listens to the bus event `mobile_app_notification_action`. `parse_action_id(action) -> (kind, entry_id) | None` accepts only the four ids above (upper case, non-empty entry id). A match calls `runtime.async_correct_entry(entry_id, kind, guest_name=reply_text for VISIT, source="push")`. Foreign action ids and a `ServiceValidationError` (unknown or deleted entry, ring still in its window) are ignored; the error is only logged at debug level. The listener is removed on unload.
+
+## Export and retention (ticket 13)
+
+- `core/archive.py` (pure): `expired_entries(entries, now, retention)` returns the closed entries whose `end` is older than `now - retention` (an entry ending exactly at the cutoff stays; entries with `end` None, i.e. open visits and pending rings, are never expired). `entries_in_range(entries, start, end)` sorts by start and keeps `start <= entry.start < end` (a missing bound is open). `to_jsonl(entries)` is one `Entry.to_dict()` JSON object per line.
+- Retention is the option `retention` (days, default 365, `settings.py` maps it to `Settings.retention`). `GuestbookRuntime.async_purge(now)` removes the expired entries from the store; it runs in `async_start` and every day (`async_track_time_interval`, `PURGE_INTERVAL`). A changed retention applies at the next run; saving the option does not purge at once.
+- `guestbook.export` (optional `start`, `end`; `SupportsResponse.OPTIONAL`) calls `GuestbookRuntime.async_export(start, end)`. The file is `<config>/guestbook/guestbook-<UTC %Y%m%dT%H%M%SZ>.jsonl`, written in the executor (`hass.config.path`); a second export in the same second gets `-2`, `-3` instead of overwriting. The response is `{"path": ..., "count": ...}`. Naive datetimes count as local time. The export contains all stored entries in range, including pending rings and open visits.
 
 ## Storage
 

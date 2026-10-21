@@ -38,6 +38,7 @@ async def test_options_form_offers_the_push_targets_and_switches(hass: HomeAssis
     assert result["type"] is FlowResultType.FORM
     schema = result["data_schema"].schema
     assert {str(key) for key in schema} == {
+        "retention",
         "phones",
         "notify_entities",
         "push_arrival",
@@ -57,6 +58,7 @@ async def test_push_switches_default_to_arrival_end_correction_on_and_unanswered
     await set_options(hass, setup_guestbook)
 
     assert setup_guestbook.options == {
+        "retention": 365,
         "phones": [],
         "notify_entities": [],
         "push_arrival": True,

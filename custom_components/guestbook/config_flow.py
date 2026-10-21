@@ -30,11 +30,13 @@ from .const import (
     CONF_PUSH_UNANSWERED_RING,
     CONF_RESIDENT_SIGNALS,
     CONF_RESIDENTS,
+    CONF_RETENTION,
     CONF_TRACKERS,
     DOMAIN,
     PUSH_DEFAULTS,
     SUBENTRY_GUEST,
 )
+from .settings import rule_defaults
 
 
 def _entities(*domains: str) -> selector.EntitySelector:
@@ -62,6 +64,9 @@ GUEST_SCHEMA = probatio.Schema(
 
 PUSH_SCHEMA = probatio.Schema(
     {
+        probatio.Optional(CONF_RETENTION, default=rule_defaults()[CONF_RETENTION]): selector.NumberSelector(
+            selector.NumberSelectorConfig(min=1, max=3650, step=1, unit_of_measurement="d", mode="box")
+        ),
         probatio.Optional(CONF_PHONES, default=[]): selector.DeviceSelector(
             selector.DeviceSelectorConfig(integration="mobile_app", multiple=True)
         ),
