@@ -220,8 +220,9 @@ def test_suggestion_texts_exist_in_every_language():
     for name in ("strings.json", "translations/en.json", "translations/de.json"):
         issue_texts = json.loads((COMPONENT / name).read_text())["issues"]["guest_suggestion"]
         assert "{name}" in issue_texts["title"]
-        assert "{name}" in issue_texts["description"]
+        assert "description" not in issue_texts  # hassfest: a fixable issue describes itself in the fix flow
         form = issue_texts["fix_flow"]["step"]["guest"]
         assert "{name}" in form["title"]
+        assert "{name}" in form["description"]
         assert form["data"]["trackers"]
         assert issue_texts["fix_flow"]["abort"]["not_loaded"]
