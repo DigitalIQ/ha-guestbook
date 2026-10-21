@@ -15,7 +15,7 @@ from .runtime import GuestbookRuntime
 from .services import async_register_services
 from .store import GuestbookStore
 
-PLATFORMS = [Platform.CALENDAR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.CALENDAR, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 

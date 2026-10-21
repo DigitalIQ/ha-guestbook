@@ -61,12 +61,25 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "visit_active": {
+        "name": "Besuch aktiv"
+      },
+      "guest": {
+        "name": "Zu Besuch"
+      }
+    },
     "calendar": {
       "visits": {
         "name": "Besuche"
       },
       "rings": {
         "name": "Klingeln"
+      }
+    },
+    "sensor": {
+      "current_visit": {
+        "name": "Aktueller Besuch"
       }
     }
   },
