@@ -1,0 +1,15 @@
+# Local Home Assistant for development (OrbStack or Docker Desktop).
+# Start: docker compose -f dev/docker-compose.yaml up -d   -> http://localhost:8125
+name: guestbook-dev
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:2026.10.2
+    container_name: gb-dev-ha
+    ports:
+      - "127.0.0.1:8125:8123"
+    volumes:
+      - ./config:/config
+      - ../custom_components/guestbook:/config/custom_components/guestbook
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
