@@ -81,3 +81,24 @@ async def test_ring_that_expires_during_downtime_is_unanswered_after_the_restart
 
     (event,) = await get_rings(hass)
     assert parse(event["end"]) == parse("2026-10-21T14:01:00+00:00")
+
+
+async def test_door_opening_exactly_when_the_timer_of_the_ring_window_fires_still_counts(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await ring(hass)
+
+    await advance(hass, freezer, timedelta(minutes=5))  # the clock reaches the end of the ring window first
+    hass.states.async_set(DOOR, "on")  # the door opens at exactly that moment
+    await hass.async_block_till_done()
+
+    assert await get_rings(hass) == []
+    assert hass.states.get("binary_sensor.guestbook_visit_active").state == "on"
+
+
+async def test_ring_still_expires_a_moment_after_the_end_of_its_window(hass: HomeAssistant, setup_guestbook, freezer):
+    await ring(hass)
+
+    await advance(hass, freezer, timedelta(minutes=5, seconds=2))
+
+    assert len(await get_rings(hass)) == 1

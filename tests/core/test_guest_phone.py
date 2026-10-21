@@ -123,13 +123,14 @@ def test_visit_with_two_guests_ends_when_the_last_phone_left():
     engine.handle(home("14:10", "sam", SAM_PHONE))
 
     engine.handle(away("14:20"))
-    assert engine.next_deadline() is None
-    assert engine.advance(at("23:00")) == []
-    engine.handle(away("14:30", "sam", SAM_PHONE))
+    (left,) = engine.advance(at("23:00"))  # Alex is gone after the grace period, the visit goes on with Sam
+    assert left.kind is ChangeKind.GUEST_LEFT
+    assert visit.open
+    engine.handle(away("23:30", "sam", SAM_PHONE))
 
-    assert engine.next_deadline() == at("14:35")
-    engine.advance(at("14:35"))
-    assert visit.end == at("14:30")
+    assert engine.next_deadline() == at("23:35")
+    engine.advance(at("23:35"))
+    assert visit.end == at("23:30")
     assert visit.end_reason.code == "guests_left"
 
 

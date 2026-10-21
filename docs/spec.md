@@ -146,13 +146,15 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Rules (default settings in brackets)
 
-- Ring window [5 min]: a door opening or presence on within this time after a ring turns the ring into a visit. A signal exactly at the end of the window still counts.
+- Ring window [5 min]: a door opening or presence on within this time after a ring turns the ring into a visit. A signal exactly at the end of the window still counts. This holds even when the clock reaches the end of the window first (the timer waits a second longer).
 - Resident window [3 min]: a resident signal from this time before a ring until the end of the ring window makes the ring a resident arrival. The rule core remembers resident signals in memory only, so a restart forgets them.
+- Signal cap [1000 per entry]: an open visit that never ends (a guest phone that stays home for weeks) must not grow without bound. Beyond the cap the oldest door, presence and lock signals are dropped; rings, guest phone signals and the signal that started the visit are kept. The entry counts the dropped signals (`dropped_signals`) and the description says "… N older signals not kept".
 - A door opening or presence with no ring before it starts nothing (residents leaving and coming back).
 - A ring plus a door opening or presence while a certain visit is open does not start a new entry. Both are added to that visit.
 - Quiet period [10 min]: an uncertain visit ends at the first door opening after which the door stays closed for this long. The end time is that door opening. Only door openings count for this check; door closings are ignored. Entry grace [2 min]: a door opening in the first 2 minutes after the signal that turned the ring into a visit (the guest coming in) does not count. The grace counts from that signal, not from the ring.
 - Maximum duration [4 h]: an uncertain visit with no detected end ends at start plus this time, reason `max_duration`.
 - Phone grace period [5 min]: a guest phone must stay away this long before it counts as leaving. The end time is the moment it went away.
+- A guest with several phones has left when all of them are away for the phone grace period; a visit that already had one phone of the guest learns of another phone that is home at startup. In a visit that goes on with another guest, the guest who left is no longer present (their binary sensor goes off) but stays in the visit's guest list.
 - A certain visit ends when all its guest phones have left. A guest phone joining an open uncertain visit makes it certain; its later end follows the phone rule.
 - A guest phone joining while a certain visit is open adds the guest to that visit.
 - Pushes "arrival" and "end" only when no selected resident `person` is `home`.

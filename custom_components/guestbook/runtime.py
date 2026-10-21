@@ -150,13 +150,12 @@ class GuestbookRuntime:
 
     @callback
     def _announce_guests_at_home(self) -> None:
-        """Start a visit for every guest whose phone is already home and who is in no open visit."""
+        """Report every guest phone that is already home: a visit starts or learns of the phone."""
         now = dt_util.utcnow()
         for guest in self._guests:
             for tracker in guest.trackers:
                 if (state := self._hass.states.get(tracker)) is not None and state.state == STATE_HOME:
                     self._apply(self._engine.guest_present(guest.id, tracker, now))
-                    break
 
     @callback
     def async_handle_signal(self, signal: Signal) -> None:
@@ -232,8 +231,10 @@ class GuestbookRuntime:
         missing or used token; a correction that is not possible raises like `async_correct_entry`.
         """
         entry = self.async_get_entry(entry_id)
-        if entry is None or not entry.question_token or not secrets.compare_digest(
-            entry.question_token.encode(), token.encode()
+        if (
+            entry is None
+            or not entry.question_token
+            or not secrets.compare_digest(entry.question_token.encode(), token.encode())
         ):
             return False
         pending, entry.question_token = entry.question_token, None
