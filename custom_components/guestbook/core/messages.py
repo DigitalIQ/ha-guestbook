@@ -93,29 +93,34 @@ def push_message(kind: PushKind, language: str, guests: list[str], entry_id: str
     return " ".join(parts)
 
 
-def action_id(kind: CorrectionKind, entry_id: str) -> str:
-    return f"{ACTION_PREFIX}{kind.upper()}_{entry_id}"
+def action_id(kind: CorrectionKind, entry_id: str, token: str) -> str:
+    """The id of a button: `GUESTBOOK_<KIND>_<entry id>_<token>`. The token makes the answer one-time."""
+    return f"{ACTION_PREFIX}{kind.upper()}_{entry_id}_{token}"
 
 
-def parse_action_id(action: str) -> tuple[CorrectionKind, str] | None:
-    """Return (correction kind, entry id) of an action id built by `action_id`, else None."""
+def parse_action_id(action: str) -> tuple[CorrectionKind, str, str] | None:
+    """Return (correction kind, entry id, token) of an action id built by `action_id`, else None.
+
+    Entry ids are hex strings without underscores; the token is everything after the second underscore.
+    """
     if not action.startswith(ACTION_PREFIX):
         return None
-    kind, _, entry_id = action.removeprefix(ACTION_PREFIX).partition("_")
-    if kind != kind.upper() or not entry_id:
+    kind, _, rest = action.removeprefix(ACTION_PREFIX).partition("_")
+    entry_id, _, token = rest.partition("_")
+    if kind != kind.upper() or not entry_id or not token:
         return None
     try:
-        return CorrectionKind(kind.lower()), entry_id
+        return CorrectionKind(kind.lower()), entry_id, token
     except ValueError:
         return None
 
 
-def correction_actions(language: str, entry_id: str, *, android: bool = False) -> list[dict[str, str]]:
+def correction_actions(language: str, entry_id: str, token: str, *, android: bool = False) -> list[dict[str, str]]:
     """Return the buttons of the correction question; Android shows three at most."""
     texts = _texts(language)
     actions = []
     for kind in CorrectionKind:
-        action = {"action": action_id(kind, entry_id), "title": texts[kind.value]}
+        action = {"action": action_id(kind, entry_id, token), "title": texts[kind.value]}
         if kind is CorrectionKind.VISIT:
             action |= {
                 "behavior": "textInput",

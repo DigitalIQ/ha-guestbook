@@ -36,6 +36,7 @@ def test_entry_survives_a_json_round_trip():
         notes=["Brought wine"],
         settings=Settings().to_dict(),
         rule_state={"deadline": at("14:05").isoformat()},
+        question_token="tok_en-1",
     )
 
     restored = Entry.from_dict(json.loads(json.dumps(entry.to_dict())))

@@ -50,14 +50,14 @@ def test_unknown_language_falls_back_to_english_and_region_is_ignored():
     assert push_title(PushKind.END, "de-AT") == "Besuch beendet"
 
 
-def test_correction_actions_carry_the_entry_id():
-    actions = correction_actions("en", "abc123")
+def test_correction_actions_carry_the_entry_id_and_the_token():
+    actions = correction_actions("en", "abc123", "tok-1")
 
     assert [a["action"] for a in actions] == [
-        "GUESTBOOK_RESIDENT_abc123",
-        "GUESTBOOK_DELIVERY_abc123",
-        "GUESTBOOK_VISIT_abc123",
-        "GUESTBOOK_UNKNOWN_abc123",
+        "GUESTBOOK_RESIDENT_abc123_tok-1",
+        "GUESTBOOK_DELIVERY_abc123_tok-1",
+        "GUESTBOOK_VISIT_abc123_tok-1",
+        "GUESTBOOK_UNKNOWN_abc123_tok-1",
     ]
     assert [a["title"] for a in actions] == ["That was me", "Delivery", "Visit", "Don't know"]
     visit = actions[2]
@@ -68,22 +68,28 @@ def test_correction_actions_carry_the_entry_id():
 
 
 def test_correction_actions_are_translated():
-    actions = correction_actions("de", "abc123")
+    actions = correction_actions("de", "abc123", "tok-1")
 
     assert [a["title"] for a in actions] == ["War ich", "Lieferung", "Besuch", "Weiß nicht"]
     assert actions[2]["textInputPlaceholder"] == "Name des Gastes"
 
 
 def test_android_gets_the_first_three_actions_only():
-    actions = correction_actions("en", "abc123", android=True)
+    actions = correction_actions("en", "abc123", "tok-1", android=True)
 
     assert [a["title"] for a in actions] == ["That was me", "Delivery", "Visit"]
 
 
 def test_action_ids_round_trip():
-    assert action_id("visit", "abc123") == "GUESTBOOK_VISIT_abc123"
-    assert parse_action_id("GUESTBOOK_VISIT_abc123") == ("visit", "abc123")
-    assert parse_action_id("GUESTBOOK_UNKNOWN_abc123") == ("unknown", "abc123")
+    assert action_id("visit", "abc123", "tok") == "GUESTBOOK_VISIT_abc123_tok"
+    assert parse_action_id("GUESTBOOK_VISIT_abc123_tok") == ("visit", "abc123", "tok")
+    assert parse_action_id("GUESTBOOK_UNKNOWN_abc123_tok") == ("unknown", "abc123", "tok")
+
+
+def test_a_token_with_underscores_and_dashes_round_trips():
+    token = "a_b-c_d"
+
+    assert parse_action_id(action_id("resident", "abc123", token)) == ("resident", "abc123", token)
 
 
 def test_foreign_or_malformed_action_ids_do_not_parse():
@@ -93,8 +99,11 @@ def test_foreign_or_malformed_action_ids_do_not_parse():
         "REPLY",
         "GUESTBOOK_",
         "GUESTBOOK_VISIT_",
-        "GUESTBOOK_COFFEE_abc123",
-        "guestbook_visit_abc",
+        "GUESTBOOK_VISIT_abc123",  # no token
+        "GUESTBOOK_VISIT_abc123_",  # empty token
+        "GUESTBOOK_VISIT__tok",  # no entry id
+        "GUESTBOOK_COFFEE_abc123_tok",
+        "guestbook_visit_abc_tok",
     ):
         assert parse_action_id(action) is None
 

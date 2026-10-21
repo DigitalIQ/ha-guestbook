@@ -54,6 +54,7 @@ EXPORT_DIR = "guestbook"
 PURGE_INTERVAL = timedelta(days=1)
 SOURCE_ACTION = "action"
 SOURCE_PUSH = "push"
+QUESTION_TOKEN_BYTES = 8  # random bytes of the one-time token in a correction button (11 characters)
 
 STORAGE_KEY = "guestbook.entries"
 STORAGE_VERSION = 1
