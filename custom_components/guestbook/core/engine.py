@@ -26,6 +26,7 @@ RING_THEN: dict[SignalKind, Reason] = {
     SignalKind.PRESENCE_ON: Reason("ring_then_presence", "Ring followed by presence within the ring window"),
 }
 
+RESIDENT_SIGNAL = Reason("resident_signal", "Resident signal close to the ring")
 DOOR_THEN_QUIET = Reason("door_then_quiet", "Door opening followed by the quiet period")
 MAX_DURATION = Reason("max_duration", "No end detected, ended at the maximum duration")
 
@@ -42,6 +43,7 @@ class Engine:
     def __init__(self, settings: Settings, guests: list[Guest], entries: Iterable[Entry] = ()) -> None:
         self._settings = settings
         self._guests = guests
+        self._residents: list[Signal] = []  # recent resident signals, kept in memory only
         self._active: dict[str, Entry] = {
             entry.id: entry
             for entry in entries
@@ -51,7 +53,9 @@ class Engine:
     def handle(self, signal: Signal) -> list[Change]:
         changes = self.advance(signal.time)
         if signal.kind is SignalKind.RING:
-            changes.append(self._open_pending_ring(signal))
+            changes.append(self._handle_ring(signal))
+        elif signal.kind is SignalKind.RESIDENT:
+            changes.extend(self._handle_resident(signal))
         elif signal.kind in RING_THEN and (classified := self._turn_pending_rings_into_visit(signal)):
             changes.extend(classified)
         elif signal.kind in VISIT_SIGNALS:
@@ -121,6 +125,42 @@ class Engine:
                 visit.signals.append(signal)
                 changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
         return changes
+
+    def _handle_ring(self, signal: Signal) -> Change:
+        since = signal.time - self._settings.resident_window
+        if recent := [r for r in self._residents if since <= r.time <= signal.time]:
+            signals = sorted([*recent, signal], key=lambda s: s.time)
+            entry = Entry(id=uuid4().hex, kind=EntryKind.PENDING_RING, start=signal.time, signals=signals)
+            return self._resident_arrival(entry, signal.time, signal)
+        return self._open_pending_ring(signal)
+
+    def _handle_resident(self, signal: Signal) -> list[Change]:
+        horizon = signal.time - self._settings.resident_window
+        self._residents = [r for r in self._residents if r.time >= horizon]
+        self._residents.append(signal)
+        changes = []
+        for entry in sorted(self._active.values(), key=lambda e: e.start):
+            if entry.kind is EntryKind.PENDING_RING or self._started_by_ring_inside_window(entry, signal.time):
+                self._active.pop(entry.id, None)
+                entry.signals.append(signal)
+                changes.append(self._resident_arrival(entry, signal.time, signal))
+        return changes
+
+    def _started_by_ring_inside_window(self, visit: Entry, now: datetime) -> bool:
+        if visit.reason is None or visit.reason.code not in {r.code for r in RING_THEN.values()}:
+            return False
+        window = self._settings.ring_window
+        return any(s.kind is SignalKind.RING and s.time <= now < s.time + window for s in visit.signals)
+
+    def _resident_arrival(self, entry: Entry, end: datetime, signal: Signal) -> Change:
+        entry.kind = EntryKind.RESIDENT_ARRIVAL
+        entry.certainty = None
+        entry.end = end
+        entry.end_reason = None
+        entry.reason = RESIDENT_SIGNAL
+        entry.settings = self._settings.to_dict()
+        entry.rule_state = {}
+        return Change(ChangeKind.CLASSIFIED, entry, signal)
 
     def _open_pending_ring(self, signal: Signal) -> Change:
         entry = Entry(

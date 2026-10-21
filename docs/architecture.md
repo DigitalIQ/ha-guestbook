@@ -16,7 +16,7 @@ custom_components/guestbook/
   config_flow.py        config flow, options flow, guest subentry flow
   store.py              GuestbookStore (HA Store wrapper, purge)
   runtime.py            GuestbookRuntime: owns engine + store, applies Changes, fires events, notifies listeners
-  adapter.py            state listeners -> Signal
+  adapter.py            state listeners -> Signal (doorbells, doors, presence, locks, resident signals)
   calendar.py           Visits and Rings calendars
   sensor.py / binary_sensor.py
   services.py           actions
@@ -115,9 +115,13 @@ Visit end (ticket 02): an open uncertain visit has two deadlines and `next_deadl
 
 A `handle` call first runs `advance(signal.time)`, so deadlines before the signal fire first. Entries returned in Changes are the live objects; the runtime stores them.
 
+Resident signals (ticket 03): the engine keeps resident signals of the last `resident_window` in memory only. They are not stored; a restart inside that window forgets them (accepted, the window is minutes). A `RING` with a resident signal in `[ring - resident_window, ring]` becomes a `RESIDENT_ARRIVAL` at once (one `CLASSIFIED` change, no `OPENED`): `reason` `resident_signal`, `start` = `end` = ring time, `signals` = the resident signals plus the ring, `certainty` None. A `RESIDENT` signal turns every pending ring into a `RESIDENT_ARRIVAL` (`end` = signal time) and every open uncertain visit with a ring inside its ring window (`ring <= signal < ring + ring_window`) as well; `end_reason` is cleared. A `CLASSIFIED` change whose entry has an `end` is final: the entry left `active_entries()`. Resident signals outside these cases change nothing and are not appended to visits.
+
 ## Home Assistant APIs
 
-Config flow schemas use `probatio` (as in Home Assistant 2026.10 core), not `voluptuous`. Entity ids: the Visits calendar belongs to a "Guestbook" service device, so it is `calendar.guestbook_visits`. Signal time is `State.last_changed` of the new state.
+Config flow schemas use `probatio` (as in Home Assistant 2026.10 core), not `voluptuous`. Entity ids: the Visits calendar belongs to a "Guestbook" service device, so it is `calendar.guestbook_visits`. Signal time is `State.last_changed` of the new state. Changes from or to `unavailable`/`unknown` are ignored, except `unknown` to a timestamp on `event` entities. Resident signal entities fire on a change to `on`, `home` or `unlocked` or on a new `event` timestamp; lock entities (`locks` source, lock domain) emit a `LOCK` signal with the new state on every state change.
+
+Action `guestbook.resident_unlock` (optional `source` text) is registered in `async_setup` (`services.py`). It hands `Signal(RESIDENT, now, "action", state=source)` to every loaded entry's runtime and raises `ServiceValidationError` (`not_loaded`) when no entry is loaded.
 
 ## Runtime
 

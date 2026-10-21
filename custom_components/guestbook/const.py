@@ -7,8 +7,12 @@ DOMAIN = "guestbook"
 CONF_DOORBELLS = "doorbells"
 CONF_DOORS = "doors"
 CONF_PRESENCE = "presence"
+CONF_LOCKS = "locks"
 CONF_RESIDENTS = "residents"
 CONF_RESIDENT_SIGNALS = "resident_signals"
+
+ATTR_SOURCE = "source"
+SERVICE_RESIDENT_UNLOCK = "resident_unlock"
 
 STORAGE_KEY = "guestbook.entries"
 STORAGE_VERSION = 1

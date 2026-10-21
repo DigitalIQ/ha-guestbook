@@ -8,7 +8,7 @@ import probatio
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.helpers import selector
 
-from .const import CONF_DOORBELLS, CONF_DOORS, CONF_PRESENCE, CONF_RESIDENT_SIGNALS, CONF_RESIDENTS, DOMAIN
+from .const import CONF_DOORBELLS, CONF_DOORS, CONF_LOCKS, CONF_PRESENCE, CONF_RESIDENT_SIGNALS, CONF_RESIDENTS, DOMAIN
 
 
 def _entities(*domains: str) -> selector.EntitySelector:
@@ -20,6 +20,7 @@ SOURCES_SCHEMA = probatio.Schema(
         probatio.Optional(CONF_DOORBELLS, default=[]): _entities("event", "binary_sensor"),
         probatio.Optional(CONF_DOORS, default=[]): _entities("binary_sensor"),
         probatio.Optional(CONF_PRESENCE, default=[]): _entities("binary_sensor"),
+        probatio.Optional(CONF_LOCKS, default=[]): _entities("lock"),
         probatio.Optional(CONF_RESIDENTS, default=[]): _entities("person"),
         probatio.Optional(CONF_RESIDENT_SIGNALS, default=[]): _entities(),
     }

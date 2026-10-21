@@ -5,15 +5,26 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
 from .adapter import SignalAdapter
+from .const import DOMAIN
 from .core import Engine, Settings
 from .runtime import GuestbookRuntime
+from .services import async_register_services
 from .store import GuestbookStore
 
 PLATFORMS = [Platform.CALENDAR]
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 type GuestbookConfigEntry = ConfigEntry[GuestbookRuntime]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    async_register_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) -> bool:

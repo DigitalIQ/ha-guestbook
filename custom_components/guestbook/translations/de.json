@@ -8,6 +8,7 @@
           "doorbells": "Türklingeln",
           "doors": "Türkontakte",
           "presence": "Anwesenheitssensoren",
+          "locks": "Schlösser",
           "residents": "Bewohner",
           "resident_signals": "Bewohnersignale"
         },
@@ -15,6 +16,7 @@
           "doorbells": "Event-Entitäten oder Binärsensoren der Türklingel. Ein Klingeln startet das Klingelfenster.",
           "doors": "Türkontakte. Eine Öffnung nach dem Klingeln macht daraus einen Besuch.",
           "presence": "Anwesenheits- oder Bewegungssensoren im Haus. Anwesenheit nach dem Klingeln macht daraus ebenfalls einen Besuch.",
+          "locks": "Schlösser, deren Zustandswechsel im Besuchsprotokoll erscheinen.",
           "residents": "Person-Entitäten der Menschen, die hier wohnen. Bewohner werden nie zu Besuchen.",
           "resident_signals": "Entitäten, die beweisen, dass ein Bewohner nach Hause kommt, zum Beispiel ein Fingerabdruckleser oder das Handy eines Bewohners."
         }
@@ -28,6 +30,23 @@
     "calendar": {
       "visits": {
         "name": "Besuche"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Guestbook ist nicht eingerichtet oder nicht geladen."
+    }
+  },
+  "services": {
+    "resident_unlock": {
+      "name": "Bewohner-Entsperrung",
+      "description": "Meldet, dass ein Bewohner ankommt oder die Tür öffnet, damit ein Klingeln in der Nähe kein Besuch wird.",
+      "fields": {
+        "source": {
+          "name": "Quelle",
+          "description": "Optionaler Text, der sagt, woher das Signal kommt, zum Beispiel der Name eines Schlosses."
+        }
       }
     }
   }

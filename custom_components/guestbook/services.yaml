@@ -1,0 +1,6 @@
+resident_unlock:
+  fields:
+    source:
+      example: Garage keypad
+      selector:
+        text:
