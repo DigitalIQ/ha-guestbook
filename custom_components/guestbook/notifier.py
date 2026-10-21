@@ -7,8 +7,8 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_HOME
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.util import slugify
 
@@ -21,6 +21,7 @@ from .const import (
     CONF_PUSH_UNANSWERED_RING,
     CONF_RESIDENTS,
     PUSH_DEFAULTS,
+    SOURCE_PUSH,
 )
 from .core import (
     Certainty,
@@ -30,6 +31,7 @@ from .core import (
     EntryKind,
     PushKind,
     correction_actions,
+    parse_action_id,
     push_message,
     push_title,
 )
@@ -38,6 +40,7 @@ from .runtime import GuestbookRuntime
 _LOGGER = logging.getLogger(__name__)
 
 MOBILE_APP = "mobile_app"
+EVENT_NOTIFICATION_ACTION = "mobile_app_notification_action"
 SWITCHES = {
     PushKind.ARRIVAL: CONF_PUSH_ARRIVAL,
     PushKind.END: CONF_PUSH_END,
@@ -56,7 +59,29 @@ class Notifier:
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
-        return self._runtime.async_add_change_listener(self._handle_change)
+        unsubs = [
+            self._runtime.async_add_change_listener(self._handle_change),
+            self._hass.bus.async_listen(EVENT_NOTIFICATION_ACTION, self._handle_action),
+        ]
+
+        @callback
+        def stop() -> None:
+            for unsub in unsubs:
+                unsub()
+
+        return stop
+
+    @callback
+    def _handle_action(self, event: Event) -> None:
+        """Save the answer to a correction question; anything that is not ours or not valid is ignored."""
+        if (parsed := parse_action_id(str(event.data.get("action", "")))) is None:
+            return
+        kind, entry_id = parsed
+        guest_name = (str(event.data.get("reply_text") or "").strip() or None) if kind == "visit" else None
+        try:
+            self._runtime.async_correct_entry(entry_id, kind, guest_name=guest_name, source=SOURCE_PUSH)
+        except ServiceValidationError as err:
+            _LOGGER.debug("Ignoring the answer for entry %s: %s", entry_id, err)
 
     @callback
     def _handle_change(self, change: Change) -> None:
