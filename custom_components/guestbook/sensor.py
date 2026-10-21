@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GuestbookConfigEntry
-from .core import Entry
+from .core import Entry, effective_guests
 from .entity import GuestbookEntity
 
 
@@ -33,7 +33,7 @@ class CurrentVisitSensor(GuestbookEntity, SensorEntity):
     def native_value(self) -> str | None:
         if (visit := self._visit) is None:
             return None
-        return ", ".join(guest["name"] for guest in visit.guests) or "unknown"
+        return ", ".join(effective_guests(visit)) or "unknown"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

@@ -1,5 +1,6 @@
 """Rule core: turns signals into entries. No Home Assistant imports."""
 
+from .effective import EffectiveKind, effective_end, effective_guests, effective_kind, effective_start
 from .engine import Engine
 from .models import (
     Certainty,
@@ -21,6 +22,7 @@ __all__ = [
     "Change",
     "ChangeKind",
     "Correction",
+    "EffectiveKind",
     "Engine",
     "Entry",
     "EntryKind",
@@ -29,6 +31,10 @@ __all__ = [
     "Settings",
     "Signal",
     "SignalKind",
+    "effective_end",
+    "effective_guests",
+    "effective_kind",
+    "effective_start",
     "render_description",
     "render_title",
 ]

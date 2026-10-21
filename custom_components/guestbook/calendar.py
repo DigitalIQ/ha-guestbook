@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import GuestbookConfigEntry
-from .core import Entry, EntryKind, render_description, render_title
+from .core import EffectiveKind, Entry, effective_end, effective_start, render_description, render_title
 from .entity import GuestbookEntity
 
 OPEN_ENTRY_MARGIN = timedelta(minutes=1)
@@ -24,7 +24,7 @@ async def async_setup_entry(
 
 
 class GuestbookCalendar(GuestbookEntity, CalendarEntity):
-    entry_kind: EntryKind
+    entry_kinds: tuple[EffectiveKind, ...]
     unique_suffix: str
 
     def __init__(self, entry: GuestbookConfigEntry) -> None:
@@ -35,26 +35,30 @@ class GuestbookCalendar(GuestbookEntity, CalendarEntity):
     def event(self) -> CalendarEvent | None:
         """Return the latest open or ongoing entry."""
         now = dt_util.utcnow()
-        current = [e for e in self._runtime.async_entries(self.entry_kind) if e.open or e.start <= now < e.end]
+        current = [
+            e
+            for e in self._runtime.async_entries(*self.entry_kinds)
+            if (end := effective_end(e)) is None or effective_start(e) <= now < end
+        ]
         if not current:
             return None
-        latest = max(current, key=lambda e: e.start)
+        latest = max(current, key=effective_start)
         event = self._to_event(latest, now)
         # The calendar state is "on" only before the event end; an open entry has no end yet.
-        return replace(event, end=event.end + OPEN_ENTRY_MARGIN) if latest.open else event
+        return replace(event, end=event.end + OPEN_ENTRY_MARGIN) if effective_end(latest) is None else event
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         now = dt_util.utcnow()
-        events = (self._to_event(entry, now) for entry in self._runtime.async_entries(self.entry_kind))
+        events = (self._to_event(entry, now) for entry in self._runtime.async_entries(*self.entry_kinds))
         return sorted((e for e in events if e.start < end_date and e.end > start_date), key=lambda e: e.start)
 
     def _to_event(self, entry: Entry, now: datetime) -> CalendarEvent:
         language = self.hass.config.language
         return CalendarEvent(
-            start=entry.start,
-            end=entry.end or max(now, entry.start),
+            start=effective_start(entry),
+            end=effective_end(entry) or max(now, effective_start(entry)),
             summary=render_title(entry, language),
             description=self._description(entry, language) or None,
             uid=entry.id,
@@ -69,10 +73,10 @@ class GuestbookCalendar(GuestbookEntity, CalendarEntity):
 
 
 class VisitsCalendar(GuestbookCalendar):
-    entry_kind = EntryKind.VISIT
+    entry_kinds = (EffectiveKind.VISIT,)
     unique_suffix = "visits"
 
 
 class RingsCalendar(GuestbookCalendar):
-    entry_kind = EntryKind.UNANSWERED_RING
+    entry_kinds = (EffectiveKind.UNANSWERED_RING, EffectiveKind.DELIVERY)
     unique_suffix = "rings"

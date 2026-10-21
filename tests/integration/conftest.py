@@ -116,3 +116,37 @@ async def add_guest(hass: HomeAssistant, entry: MockConfigEntry, name: str, trac
 async def set_tracker(hass: HomeAssistant, entity_id: str, state: str) -> None:
     hass.states.async_set(entity_id, state)
     await hass.async_block_till_done()
+
+
+async def calendar_uids(hass: HomeAssistant, entity_id: str) -> list[str]:
+    """Return the entry ids of the events of a Guestbook calendar."""
+    now = dt_util.utcnow()
+    events = (
+        await hass.data["calendar"]
+        .get_entity(entity_id)
+        .async_get_events(hass, now - timedelta(days=1), now + timedelta(days=1))
+    )
+    return [event.uid for event in events]
+
+
+async def visit_uid(hass: HomeAssistant) -> str:
+    return (await calendar_uids(hass, "calendar.guestbook_visits"))[0]
+
+
+async def ring_uid(hass: HomeAssistant) -> str:
+    return (await calendar_uids(hass, "calendar.guestbook_rings"))[0]
+
+
+async def make_visit(hass: HomeAssistant, freezer) -> str:
+    """Ring, open the door and let the visit end at the maximum duration. Returns the entry id."""
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(hours=4))
+    return await visit_uid(hass)
+
+
+async def make_unanswered_ring(hass: HomeAssistant, freezer) -> str:
+    await ring(hass)
+    await advance(hass, freezer, timedelta(minutes=6))
+    return await ring_uid(hass)

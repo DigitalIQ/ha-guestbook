@@ -5,14 +5,36 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
+from uuid import uuid4
 
 from homeassistant.const import STATE_HOME
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
-from .const import EVENT_VISIT_ENDED, EVENT_VISIT_EVENT, EVENT_VISIT_STARTED
-from .core import Change, ChangeKind, Engine, Entry, EntryKind, Guest, Signal
+from .const import (
+    DOMAIN,
+    EVENT_VISIT_CORRECTED,
+    EVENT_VISIT_ENDED,
+    EVENT_VISIT_EVENT,
+    EVENT_VISIT_STARTED,
+    SOURCE_ACTION,
+)
+from .core import (
+    Certainty,
+    Change,
+    ChangeKind,
+    Correction,
+    EffectiveKind,
+    Engine,
+    Entry,
+    EntryKind,
+    Guest,
+    Reason,
+    Signal,
+    effective_kind,
+)
 from .store import GuestbookStore
 
 
@@ -45,8 +67,7 @@ class GuestbookRuntime:
         self._engine.set_guests(guests)
         self._apply(self._engine.advance(dt_util.utcnow()))
         self._announce_guests_at_home()
-        for listener in list(self._listeners):
-            listener()
+        self._notify()
 
     @callback
     def _announce_guests_at_home(self) -> None:
@@ -63,14 +84,97 @@ class GuestbookRuntime:
         self._apply(self._engine.handle(signal))
 
     @callback
-    def async_entries(self, kind: EntryKind) -> list[Entry]:
-        return [entry for entry in self._store.entries if entry.kind is kind]
+    def async_entries(self, *kinds: EffectiveKind) -> list[Entry]:
+        """Return the entries whose effective kind (correction over decision) is one of `kinds`."""
+        return [entry for entry in self._store.entries if effective_kind(entry) in kinds]
 
     @callback
     def async_open_visits(self) -> list[Entry]:
         """Return the open visits, the most recent first."""
-        visits = (entry for entry in self.async_entries(EntryKind.VISIT) if entry.open)
+        visits = (entry for entry in self.async_entries(EffectiveKind.VISIT) if entry.open)
         return sorted(visits, key=lambda entry: entry.start, reverse=True)
+
+    @callback
+    def async_correct_entry(
+        self,
+        entry_id: str,
+        kind: str,
+        *,
+        guest_name: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        note: str | None = None,
+        source: str = SOURCE_ACTION,
+    ) -> Entry:
+        """Store a correction next to the decision; resident and delivery close an open visit."""
+        entry = self._entry(entry_id)
+        if entry.kind is EntryKind.PENDING_RING:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="entry_pending",
+                translation_placeholders={"entry_id": entry_id},
+            )
+        self._check_times(start or entry.start, end or entry.end)
+        now = dt_util.utcnow()
+        entry.correction = Correction(kind, now, source, guest_name, start, end, note)
+        self._store.async_put(entry)
+        if kind in ("resident", "delivery"):
+            self._apply(self._engine.close(entry.id, now))
+        self._hass.bus.async_fire(EVENT_VISIT_CORRECTED, {"entry_id": entry.id, "kind": kind, "guest_name": guest_name})
+        self._notify()
+        return entry
+
+    @callback
+    def async_add_visit(self, guests: list[str], start: datetime, end: datetime, note: str | None = None) -> Entry:
+        """Log a visit the sensors missed. Names that match a guest profile (any case) use it."""
+        self._check_times(start, end)
+        profiles = {guest.name.casefold(): guest for guest in self._guests}
+        members: dict[str, dict[str, str]] = {}
+        for name in (n.strip() for n in guests if n.strip()):
+            profile = profiles.get(name.casefold())
+            members.setdefault(
+                name.casefold(), {"id": profile.id, "name": profile.name} if profile else {"id": "", "name": name}
+            )
+        entry = Entry(
+            id=uuid4().hex,
+            kind=EntryKind.VISIT,
+            start=start,
+            end=end,
+            certainty=Certainty.CERTAIN,
+            guests=list(members.values()),
+            reason=Reason("manual", "Added by hand"),
+            notes=[note] if note else [],
+            settings=self._engine.settings.to_dict(),
+        )
+        self._store.async_put(entry)
+        self._notify()
+        return entry
+
+    @callback
+    def async_add_note(self, entry_id: str, note: str) -> Entry:
+        entry = self._entry(entry_id)
+        entry.notes.append(note)
+        self._store.async_put(entry)
+        self._notify()
+        return entry
+
+    def _entry(self, entry_id: str) -> Entry:
+        for entry in self._store.entries:
+            if entry.id == entry_id:
+                return entry
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="unknown_entry", translation_placeholders={"entry_id": entry_id}
+        )
+
+    @staticmethod
+    def _check_times(start: datetime, end: datetime | None) -> None:
+        if end is not None and end <= start:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="end_before_start")
+
+    @callback
+    def _notify(self) -> None:
+        for listener in list(self._listeners):
+            listener()
 
     @callback
     def _apply(self, changes: list[Change]) -> None:
@@ -82,8 +186,7 @@ class GuestbookRuntime:
             self._fire_event(change)
         self._schedule()
         if changes:
-            for listener in list(self._listeners):
-                listener()
+            self._notify()
 
     @callback
     def _fire_event(self, change: Change) -> None:

@@ -86,6 +86,15 @@
   "exceptions": {
     "not_loaded": {
       "message": "Guestbook ist nicht eingerichtet oder nicht geladen."
+    },
+    "unknown_entry": {
+      "message": "Es gibt keinen Eintrag mit der ID {entry_id}. Nimm die ID aus dem Kalendereintrag oder aus den Sensorattributen."
+    },
+    "entry_pending": {
+      "message": "Der Eintrag {entry_id} ist ein Klingeln, das noch auf eine Türöffnung oder Anwesenheit wartet. Korrigiere ihn, wenn das Klingelfenster vorbei ist."
+    },
+    "end_before_start": {
+      "message": "Das Ende muss nach dem Beginn liegen."
     }
   },
   "services": {
@@ -97,6 +106,82 @@
           "name": "Quelle",
           "description": "Optionaler Text, der sagt, woher das Signal kommt, zum Beispiel der Name eines Schlosses."
         }
+      }
+    },
+    "correct_entry": {
+      "name": "Eintrag korrigieren",
+      "description": "Sagt Guestbook, was ein Eintrag wirklich war. Die ursprüngliche Entscheidung bleibt neben deiner Korrektur erhalten.",
+      "fields": {
+        "entry_id": {
+          "name": "Eintrags-ID",
+          "description": "Die ID des Besuchs oder Klingelns, zu finden in den Sensorattributen und den Bus-Ereignissen."
+        },
+        "kind": {
+          "name": "Art",
+          "description": "Was der Eintrag wirklich war. Ein Bewohner erscheint in keinem Kalender, eine Lieferung im Klingel-Kalender und ein Besuch im Besuchskalender. Unklar lässt den Eintrag, wo ihn die Regeln hingelegt haben."
+        },
+        "guest_name": {
+          "name": "Name des Gasts",
+          "description": "Name des Gasts, für einen Besuch."
+        },
+        "start": {
+          "name": "Beginn",
+          "description": "Ersetzt die im Kalender angezeigte Startzeit."
+        },
+        "end": {
+          "name": "Ende",
+          "description": "Ersetzt die im Kalender angezeigte Endzeit."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freier Text, der mit der Korrektur gespeichert wird."
+        }
+      }
+    },
+    "add_visit": {
+      "name": "Besuch hinzufügen",
+      "description": "Trägt einen Besuch ein, den die Sensoren verpasst haben.",
+      "fields": {
+        "guests": {
+          "name": "Gäste",
+          "description": "Namen der Gäste. Ein Name, der zu einem Gastprofil passt, nutzt dieses Profil."
+        },
+        "start": {
+          "name": "Beginn",
+          "description": "Wann der Besuch begann."
+        },
+        "end": {
+          "name": "Ende",
+          "description": "Wann der Besuch endete."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Freier Text, der mit dem Besuch gespeichert wird."
+        }
+      }
+    },
+    "add_note": {
+      "name": "Notiz hinzufügen",
+      "description": "Fügt einem Eintrag eine freie Notiz hinzu.",
+      "fields": {
+        "entry_id": {
+          "name": "Eintrags-ID",
+          "description": "Die ID des Besuchs oder Klingelns."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Der Text, der hinzugefügt wird."
+        }
+      }
+    }
+  },
+  "selector": {
+    "correction_kind": {
+      "options": {
+        "resident": "Bewohner",
+        "delivery": "Lieferung",
+        "visit": "Besuch",
+        "unknown": "Unklar"
       }
     }
   }
