@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Subentry flow `guest` with `user` and `reconfigure` steps (name, device trackers)
-- [ ] Rule core: phone home starts a certain visit (reason `guest_phone`); phone away for the grace period ends it at the moment it went away
-- [ ] Rule core: a second guest phone joins the open certain visit
-- [ ] Rule core: a guest phone joining an open uncertain visit makes it certain and adds the guest
-- [ ] Calendar title lists the guest names
-- [ ] Adding, editing and removing guests works without restarting Home Assistant
+- [x] Subentry flow `guest` with `user` and `reconfigure` steps (name, device trackers)
+- [x] Rule core: phone home starts a certain visit (reason `guest_phone`); phone away for the grace period ends it at the moment it went away
+- [x] Rule core: a second guest phone joins the open certain visit
+- [x] Rule core: a guest phone joining an open uncertain visit makes it certain and adds the guest
+- [x] Calendar title lists the guest names
+- [x] Adding, editing and removing guests works without restarting Home Assistant

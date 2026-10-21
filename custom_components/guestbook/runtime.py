@@ -8,7 +8,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
-from .core import Change, ChangeKind, Engine, Entry, EntryKind, Signal
+from .core import Change, ChangeKind, Engine, Entry, EntryKind, Guest, Signal
 from .store import GuestbookStore
 
 
@@ -32,6 +32,13 @@ class GuestbookRuntime:
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    @callback
+    def async_set_guests(self, guests: list[Guest]) -> None:
+        self._engine.set_guests(guests)
+        self._apply(self._engine.advance(dt_util.utcnow()))
+        for listener in list(self._listeners):
+            listener()
 
     @callback
     def async_handle_signal(self, signal: Signal) -> None:

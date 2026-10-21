@@ -26,6 +26,40 @@
       "single_instance_allowed": "Guestbook ist bereits eingerichtet. Es ist nur eine Instanz erlaubt."
     }
   },
+  "config_subentries": {
+    "guest": {
+      "initiate_flow": {
+        "user": "Gast hinzufügen"
+      },
+      "entry_type": "Gast",
+      "step": {
+        "user": {
+          "title": "Gast hinzufügen",
+          "description": "Lege einen Gast mit Namen an und verknüpfe die Handys, an denen er erkannt wird. Sobald ein verknüpftes Handy ins Netzwerk kommt, erfasst Guestbook einen Besuch.",
+          "data": {
+            "name": "Name",
+            "trackers": "Handys"
+          },
+          "data_description": {
+            "name": "Der Name, der im Titel des Besuchs steht.",
+            "trackers": "Device-Tracker der Handys des Gastes, zum Beispiel aus dem Router."
+          }
+        },
+        "reconfigure": {
+          "title": "Gast bearbeiten",
+          "description": "Ändere den Namen oder die verknüpften Handys dieses Gastes.",
+          "data": {
+            "name": "Name",
+            "trackers": "Handys"
+          },
+          "data_description": {
+            "name": "Der Name, der im Titel des Besuchs steht.",
+            "trackers": "Device-Tracker der Handys des Gastes, zum Beispiel aus dem Router."
+          }
+        }
+      }
+    }
+  },
   "entity": {
     "calendar": {
       "visits": {

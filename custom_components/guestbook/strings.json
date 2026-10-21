@@ -26,6 +26,40 @@
       "single_instance_allowed": "Guestbook is already set up. Only one instance is allowed."
     }
   },
+  "config_subentries": {
+    "guest": {
+      "initiate_flow": {
+        "user": "Add guest"
+      },
+      "entry_type": "Guest",
+      "step": {
+        "user": {
+          "title": "Add guest",
+          "description": "Add a guest by name and link the phones that identify them. When a linked phone joins your network, Guestbook records a visit.",
+          "data": {
+            "name": "Name",
+            "trackers": "Phones"
+          },
+          "data_description": {
+            "name": "The name shown in the visit title.",
+            "trackers": "Device trackers of the guest's phones, for example from your router."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit guest",
+          "description": "Change the name or the linked phones of this guest.",
+          "data": {
+            "name": "Name",
+            "trackers": "Phones"
+          },
+          "data_description": {
+            "name": "The name shown in the visit title.",
+            "trackers": "Device trackers of the guest's phones, for example from your router."
+          }
+        }
+      }
+    }
+  },
   "entity": {
     "calendar": {
       "visits": {
