@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Repair issue per unknown guest name, fixable
-- [ ] Fix flow creates the guest subentry with name and selected trackers
-- [ ] Preselection: `device_tracker` entities that were `home` during the visit and are not linked to a guest
-- [ ] Issue disappears when the guest exists
+- [x] Repair issue per unknown guest name, fixable
+- [x] Fix flow creates the guest subentry with name and selected trackers
+- [x] Preselection: `device_tracker` entities that were `home` during the visit and are not linked to a guest
+- [x] Issue disappears when the guest exists

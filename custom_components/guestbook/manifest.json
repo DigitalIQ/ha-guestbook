@@ -2,6 +2,7 @@
   "domain": "guestbook",
   "name": "Guestbook",
   "codeowners": ["@DigitalIQ"],
+  "after_dependencies": ["recorder"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/DigitalIQ/ha-guestbook",
