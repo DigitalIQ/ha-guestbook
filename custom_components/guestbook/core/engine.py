@@ -45,6 +45,8 @@ VISIT_SIGNALS = {
     SignalKind.LOCK,
 }
 
+PHONE_SIGNALS = {SignalKind.GUEST_HOME, SignalKind.GUEST_AWAY}
+
 
 class Engine:
     def __init__(self, settings: Settings, guests: list[Guest], entries: Iterable[Entry] = ()) -> None:
@@ -79,6 +81,17 @@ class Engine:
             return []
         signal = Signal(SignalKind.GUEST_HOME, now, tracker, "home", guest_id)
         return [*self.advance(now), *self._handle_guest_home(signal, GUEST_PHONE_AT_START)]
+
+    def guest_absent(self, guest_id: str, tracker: str, now: datetime) -> list[Change]:
+        """Report a guest phone that is not home at startup; visits that last saw it home get an away signal."""
+        signal = Signal(SignalKind.GUEST_AWAY, now, tracker, guest_id=guest_id)
+        changes = []
+        for visit in self._active.values():
+            last = next((s for s in reversed(visit.signals) if s.source == tracker and s.kind in PHONE_SIGNALS), None)
+            if visit.kind is EntryKind.VISIT and last is not None and last.kind is SignalKind.GUEST_HOME:
+                visit.signals.append(signal)
+                changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
+        return changes
 
     def advance(self, now: datetime) -> list[Change]:
         due = sorted(

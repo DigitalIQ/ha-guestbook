@@ -243,3 +243,55 @@ async def test_restored_visit_with_the_guest_is_not_duplicated_at_startup(hass: 
 
     (event,) = await get_visits(hass)
     assert event["start"] == "2026-10-21T14:00:00+00:00"
+
+
+async def test_restored_visit_ends_when_the_phone_left_during_the_downtime(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(ALEX_PHONE, "not_home")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.alex_visiting").state == "on"
+    await advance(hass, freezer, timedelta(minutes=5))
+
+    (event,) = await get_visits(hass)
+    assert event["end"] == "2026-10-21T14:30:00+00:00"
+    assert hass.states.get("binary_sensor.alex_visiting").state == "off"
+
+
+async def test_restored_visit_stays_open_when_the_phone_is_unavailable_at_startup(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(ALEX_PHONE, "unavailable")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=10))
+
+    assert hass.states.get("binary_sensor.alex_visiting").state == "on"
+
+
+async def test_restored_visit_stays_open_while_one_of_two_phones_is_still_home(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE, ALEX_TABLET])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await set_tracker(hass, ALEX_TABLET, "home")
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    await advance(hass, freezer, timedelta(minutes=30))
+    hass.states.async_set(ALEX_TABLET, "not_home")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=10))
+
+    assert hass.states.get("binary_sensor.alex_visiting").state == "on"

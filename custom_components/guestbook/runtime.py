@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from homeassistant.const import STATE_HOME
+from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -49,7 +49,9 @@ class GuestbookRuntime:
 
     @callback
     def async_start(self) -> None:
-        self._apply(self._engine.advance(dt_util.utcnow()))
+        now = dt_util.utcnow()
+        self._apply(self._engine.advance(now))
+        self._report_guests_away(now)
         self._announce_guests_at_home()
 
     async def async_stop(self) -> None:
@@ -68,6 +70,15 @@ class GuestbookRuntime:
         self._apply(self._engine.advance(dt_util.utcnow()))
         self._announce_guests_at_home()
         self._notify()
+
+    @callback
+    def _report_guests_away(self, now: datetime) -> None:
+        """Count phones that are away at startup as having left now; their restored visits then run out."""
+        for guest in self._guests:
+            for tracker in guest.trackers:
+                state = self._hass.states.get(tracker)
+                if state is not None and state.state not in (STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN):
+                    self._apply(self._engine.guest_absent(guest.id, tracker, now))
 
     @callback
     def _announce_guests_at_home(self) -> None:
