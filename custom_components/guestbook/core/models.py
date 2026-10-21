@@ -186,6 +186,7 @@ class Entry:
     notes: list[str] = field(default_factory=list)
     settings: dict[str, float] = field(default_factory=dict)  # Settings snapshot at decision time
     rule_state: dict[str, Any] = field(default_factory=dict)  # private engine bookkeeping, JSON-safe
+    question_token: str | None = None  # one-time token of the pending correction question, never exported
 
     @property
     def open(self) -> bool:
@@ -206,6 +207,7 @@ class Entry:
             "notes": list(self.notes),
             "settings": dict(self.settings),
             "rule_state": dict(self.rule_state),
+            "question_token": self.question_token,
         }
 
     @classmethod
@@ -224,6 +226,7 @@ class Entry:
             notes=list(data.get("notes", [])),
             settings=dict(data.get("settings", {})),
             rule_state=dict(data.get("rule_state", {})),
+            question_token=data.get("question_token"),
         )
 
 

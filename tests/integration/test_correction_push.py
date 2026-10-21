@@ -1,15 +1,24 @@
+from datetime import timedelta
+from pathlib import Path
+
+import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_mock_service
 
 from custom_components.guestbook.const import CONF_RESIDENTS, EVENT_VISIT_CORRECTED
 from custom_components.guestbook.core import EffectiveKind
 
-from .conftest import ALEX_PHONE, DOOR, add_guest, add_phone, get_rings, get_visits, ring, set_options, set_tracker
+from .conftest import ALEX_PHONE, DOOR, add_guest, advance, add_phone, get_rings, get_visits, ring, set_options, set_tracker
 
 PIXEL_SERVICE = "mobile_app_pixel_of_alex"
 IPHONE_SERVICE = "mobile_app_iphone_of_sam"
 MESSENGER = "notify.family_messenger"
 ACTION_EVENT = "mobile_app_notification_action"
+
+
+@pytest.fixture
+def hass_config_dir(hass_tmp_config_dir: str) -> str:
+    return hass_tmp_config_dir
 
 
 async def start_uncertain_visit(hass: HomeAssistant) -> str:
@@ -22,6 +31,11 @@ async def start_uncertain_visit(hass: HomeAssistant) -> str:
 async def answer(hass: HomeAssistant, action: str, **data) -> None:
     hass.bus.async_fire(ACTION_EVENT, {"action": action, **data})
     await hass.async_block_till_done()
+
+
+def action(config_entry, kind: str, entry_id: str) -> str:
+    """The id of the button `kind` of the question for `entry_id`, with the token the entry holds."""
+    return f"GUESTBOOK_{kind}_{entry_id}_{_entry(config_entry, entry_id).question_token}"
 
 
 async def select_phone(hass: HomeAssistant, entry, name="Pixel of Alex", os_name="Android", **options) -> list:
@@ -39,11 +53,13 @@ async def test_uncertain_visit_asks_the_phone_with_buttons_and_a_tag(hass: HomeA
     assert call.data["title"] == "Who was that?"
     assert call.data["data"]["tag"] == entry_id
     actions = call.data["data"]["actions"]
+    token = _entry(setup_guestbook, entry_id).question_token
+    assert token
     assert [(a["action"], a["title"]) for a in actions] == [
-        (f"GUESTBOOK_RESIDENT_{entry_id}", "That was me"),
-        (f"GUESTBOOK_DELIVERY_{entry_id}", "Delivery"),
-        (f"GUESTBOOK_VISIT_{entry_id}", "Visit"),
-        (f"GUESTBOOK_UNKNOWN_{entry_id}", "Don't know"),
+        (f"GUESTBOOK_RESIDENT_{entry_id}_{token}", "That was me"),
+        (f"GUESTBOOK_DELIVERY_{entry_id}_{token}", "Delivery"),
+        (f"GUESTBOOK_VISIT_{entry_id}_{token}", "Visit"),
+        (f"GUESTBOOK_UNKNOWN_{entry_id}_{token}", "Don't know"),
     ]
     assert actions[2]["behavior"] == "textInput"
     assert actions[2]["textInputPlaceholder"] == "Name of the guest"
@@ -113,7 +129,7 @@ async def test_answering_resident_saves_a_push_correction_and_closes_the_visit(h
     await select_phone(hass, setup_guestbook)
     entry_id = await start_uncertain_visit(hass)
 
-    await answer(hass, f"GUESTBOOK_RESIDENT_{entry_id}")
+    await answer(hass, action(setup_guestbook, "RESIDENT", entry_id))
 
     entry = _entry(setup_guestbook, entry_id)
     assert entry.correction.kind == "resident"
@@ -124,7 +140,7 @@ async def test_answering_resident_saves_a_push_correction_and_closes_the_visit(h
 async def test_answering_delivery_moves_the_entry_to_the_rings_calendar(hass: HomeAssistant, setup_guestbook):
     entry_id = await start_uncertain_visit(hass)
 
-    await answer(hass, f"GUESTBOOK_DELIVERY_{entry_id}")
+    await answer(hass, action(setup_guestbook, "DELIVERY", entry_id))
 
     assert await get_visits(hass) == []
     (event,) = await get_rings(hass)
@@ -134,7 +150,7 @@ async def test_answering_delivery_moves_the_entry_to_the_rings_calendar(hass: Ho
 async def test_answering_visit_uses_the_reply_text_as_the_guest_name(hass: HomeAssistant, setup_guestbook):
     entry_id = await start_uncertain_visit(hass)
 
-    await answer(hass, f"GUESTBOOK_VISIT_{entry_id}", reply_text="Grandma Kim")
+    await answer(hass, action(setup_guestbook, "VISIT", entry_id), reply_text="Grandma Kim")
 
     entry = _entry(setup_guestbook, entry_id)
     assert entry.correction.kind == "visit"
@@ -145,7 +161,7 @@ async def test_answering_visit_uses_the_reply_text_as_the_guest_name(hass: HomeA
 async def test_answering_unknown_keeps_the_decision(hass: HomeAssistant, setup_guestbook):
     entry_id = await start_uncertain_visit(hass)
 
-    await answer(hass, f"GUESTBOOK_UNKNOWN_{entry_id}")
+    await answer(hass, action(setup_guestbook, "UNKNOWN", entry_id))
 
     entry = _entry(setup_guestbook, entry_id)
     assert entry.correction.kind == "unknown"
@@ -157,7 +173,7 @@ async def test_a_correction_by_push_fires_the_corrected_event(hass: HomeAssistan
     hass.bus.async_listen(EVENT_VISIT_CORRECTED, events.append)
     entry_id = await start_uncertain_visit(hass)
 
-    await answer(hass, f"GUESTBOOK_DELIVERY_{entry_id}")
+    await answer(hass, action(setup_guestbook, "DELIVERY", entry_id))
 
     assert [e.data for e in events] == [
         {
@@ -179,10 +195,10 @@ async def test_answers_for_unknown_entries_and_foreign_actions_are_ignored(
     events = []
     hass.bus.async_listen(EVENT_VISIT_CORRECTED, events.append)
 
-    await answer(hass, "GUESTBOOK_DELIVERY_0123456789abcdef0123456789abcdef")
+    await answer(hass, "GUESTBOOK_DELIVERY_0123456789abcdef0123456789abcdef_sometoken")
     await answer(hass, "ALARM")
     await answer(hass, "REPLY", reply_text="hello")
-    await answer(hass, "GUESTBOOK_COFFEE_" + entry_id)
+    await answer(hass, f"GUESTBOOK_COFFEE_{entry_id}_x")
     hass.bus.async_fire(ACTION_EVENT, {})
     await hass.async_block_till_done()
 
@@ -196,7 +212,7 @@ async def test_an_answer_to_a_ring_still_in_its_window_is_ignored(hass: HomeAssi
     await ring(hass)
     (pending,) = setup_guestbook.runtime_data.async_entries(EffectiveKind.PENDING_RING)
 
-    await answer(hass, f"GUESTBOOK_DELIVERY_{pending.id}")
+    await answer(hass, f"GUESTBOOK_DELIVERY_{pending.id}_sometoken")
 
     assert "ERROR" not in caplog.text
     assert pending.correction is None
@@ -206,12 +222,87 @@ async def test_answers_after_the_integration_was_unloaded_do_nothing(hass: HomeA
     events = []
     hass.bus.async_listen(EVENT_VISIT_CORRECTED, events.append)
     entry_id = await start_uncertain_visit(hass)
+    button = action(setup_guestbook, "DELIVERY", entry_id)
     assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
 
-    await answer(hass, f"GUESTBOOK_DELIVERY_{entry_id}")
+    await answer(hass, button)
 
     assert events == []
 
 
 def _entry(config_entry, entry_id: str):
     return next(e for e in config_entry.runtime_data.async_entries(*EffectiveKind) if e.id == entry_id)
+
+
+async def test_answers_with_a_wrong_missing_or_foreign_token_are_ignored(hass: HomeAssistant, setup_guestbook, caplog):
+    entry_id = await start_uncertain_visit(hass)
+    events = []
+    hass.bus.async_listen(EVENT_VISIT_CORRECTED, events.append)
+
+    await answer(hass, f"GUESTBOOK_RESIDENT_{entry_id}_wrongtoken")
+    await answer(hass, f"GUESTBOOK_RESIDENT_{entry_id}")
+    await answer(hass, f"GUESTBOOK_RESIDENT_{entry_id}_")
+
+    assert events == []
+    entry = _entry(setup_guestbook, entry_id)
+    assert entry.correction is None
+    assert entry.open is True
+    assert entry.question_token  # still waiting for the right answer
+    assert "ERROR" not in caplog.text
+
+
+async def test_a_question_can_be_answered_only_once(hass: HomeAssistant, setup_guestbook):
+    entry_id = await start_uncertain_visit(hass)
+    first = action(setup_guestbook, "UNKNOWN", entry_id)
+    second = first.replace("UNKNOWN", "DELIVERY")
+    events = []
+    hass.bus.async_listen(EVENT_VISIT_CORRECTED, events.append)
+
+    await answer(hass, first)
+    await answer(hass, second)
+    await answer(hass, first)
+
+    assert [e.data["kind"] for e in events] == ["unknown"]
+    entry = _entry(setup_guestbook, entry_id)
+    assert entry.correction.kind == "unknown"
+    assert entry.question_token is None
+
+
+async def test_a_token_of_another_entry_does_not_open_this_entry(hass: HomeAssistant, setup_guestbook, freezer):
+    first_id = await start_uncertain_visit(hass)
+    await advance(hass, freezer, timedelta(hours=4))
+    await set_tracker(hass, DOOR, "off")
+    second_id = await start_uncertain_visit(hass)
+    assert first_id != second_id
+    stolen = action(setup_guestbook, "RESIDENT", second_id).replace(second_id, first_id)
+
+    await answer(hass, stolen)
+
+    assert _entry(setup_guestbook, first_id).correction is None
+
+
+async def test_the_token_survives_a_restart_and_is_not_exported(
+    hass: HomeAssistant, setup_guestbook, hass_tmp_config_dir
+):
+    entry_id = await start_uncertain_visit(hass)
+    token = _entry(setup_guestbook, entry_id).question_token
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call("guestbook", "export", {}, blocking=True, return_response=True)
+    exported = next(Path(hass_tmp_config_dir, "guestbook").glob("*.jsonl")).read_text()
+    await answer(hass, f"GUESTBOOK_DELIVERY_{entry_id}_{token}")
+
+    assert token not in exported
+    assert _entry(setup_guestbook, entry_id).correction.kind == "delivery"
+
+
+async def test_the_correct_entry_action_needs_no_token(hass: HomeAssistant, setup_guestbook):
+    entry_id = await start_uncertain_visit(hass)
+
+    await hass.services.async_call(
+        "guestbook", "correct_entry", {"entry_id": entry_id, "kind": "delivery"}, blocking=True
+    )
+
+    assert _entry(setup_guestbook, entry_id).correction.kind == "delivery"

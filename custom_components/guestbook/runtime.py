@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import secrets
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -22,7 +23,9 @@ from .const import (
     EVENT_VISIT_STARTED,
     EXPORT_DIR,
     PURGE_INTERVAL,
+    QUESTION_TOKEN_BYTES,
     SOURCE_ACTION,
+    SOURCE_PUSH,
 )
 from .core import (
     Change,
@@ -211,6 +214,36 @@ class GuestbookRuntime:
         )
         self._notify()
         return entry
+
+    @callback
+    def async_ask_question(self, entry: Entry) -> str:
+        """Give the entry a fresh one-time token for its correction question and keep it in the storage."""
+        entry.question_token = secrets.token_urlsafe(QUESTION_TOKEN_BYTES)
+        self._store.async_put(entry)
+        return entry.question_token
+
+    @callback
+    def async_answer_question(
+        self, entry_id: str, token: str, kind: CorrectionKind, *, guest_name: str | None = None
+    ) -> bool:
+        """Save the answer to a correction question if `token` is the pending one of the entry.
+
+        The token is used up by the answer. Returns False (and changes nothing) for an unknown entry or a wrong,
+        missing or used token; a correction that is not possible raises like `async_correct_entry`.
+        """
+        entry = self.async_get_entry(entry_id)
+        if entry is None or not entry.question_token or not secrets.compare_digest(
+            entry.question_token.encode(), token.encode()
+        ):
+            return False
+        pending, entry.question_token = entry.question_token, None
+        try:
+            self.async_correct_entry(entry_id, kind, guest_name=guest_name, source=SOURCE_PUSH)
+        except ServiceValidationError:
+            entry.question_token = pending
+            raise
+        self._store.async_put(entry)
+        return True
 
     @callback
     def async_add_visit(self, guests: list[str], start: datetime, end: datetime, note: str | None = None) -> Entry:

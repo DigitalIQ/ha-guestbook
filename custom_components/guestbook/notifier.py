@@ -21,7 +21,6 @@ from .const import (
     CONF_PUSH_UNANSWERED_RING,
     CONF_RESIDENTS,
     PUSH_DEFAULTS,
-    SOURCE_PUSH,
 )
 from .core import (
     Certainty,
@@ -78,10 +77,11 @@ class Notifier:
         """Save the answer to a correction question; anything that is not ours or not valid is ignored."""
         if (parsed := parse_action_id(str(event.data.get("action", "")))) is None:
             return
-        kind, entry_id = parsed
+        kind, entry_id, token = parsed
         guest_name = (str(event.data.get("reply_text") or "").strip() or None) if kind is CorrectionKind.VISIT else None
         try:
-            self._runtime.async_correct_entry(entry_id, kind, guest_name=guest_name, source=SOURCE_PUSH)
+            if not self._runtime.async_answer_question(entry_id, token, kind, guest_name=guest_name):
+                _LOGGER.debug("Ignoring an answer for entry %s: no such pending question", entry_id)
         except ServiceValidationError as err:
             _LOGGER.debug("Ignoring the answer for entry %s: %s", entry_id, err)
 
@@ -110,13 +110,14 @@ class Notifier:
         language = self._hass.config.language
         guests = [guest["name"] for guest in entry.guests]
         title = push_title(kind, language)
+        token = self._runtime.async_ask_question(entry) if kind is PushKind.CORRECTION else ""
         for device_id in options.get(CONF_PHONES, []):
             if (phone := self._phone(device_id)) is None:
                 continue
             service, android = phone
             payload: dict[str, Any] = {"title": title, "message": push_message(kind, language, guests)}
             if kind is PushKind.CORRECTION:
-                actions = correction_actions(language, entry.id, android=android)
+                actions = correction_actions(language, entry.id, token, android=android)
                 payload["data"] = {"tag": entry.id, "actions": actions}
             self._call(service, payload)
         if entities := options.get(CONF_NOTIFY_ENTITIES, []):

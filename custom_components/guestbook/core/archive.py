@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 
 from .models import Entry, EntryKind
 
+PRIVATE_FIELDS = ("rule_state", "question_token")
+
 
 def expired_entries(entries: Iterable[Entry], now: datetime, retention: timedelta) -> list[Entry]:
     """Closed entries whose end is older than the retention; open entries are never expired."""
@@ -31,6 +33,6 @@ def entries_in_range(entries: Iterable[Entry], start: datetime | None, end: date
 
 
 def to_jsonl(entries: Iterable[Entry]) -> str:
-    """One JSON object per line, without the private `rule_state` of the engine (it stays in the storage)."""
-    lines = ({k: v for k, v in entry.to_dict().items() if k != "rule_state"} for entry in entries)
+    """One JSON object per line, without the private `rule_state` and the question token (both stay in the storage)."""
+    lines = ({k: v for k, v in entry.to_dict().items() if k not in PRIVATE_FIELDS} for entry in entries)
     return "".join(json.dumps(line, ensure_ascii=False) + "\n" for line in lines)

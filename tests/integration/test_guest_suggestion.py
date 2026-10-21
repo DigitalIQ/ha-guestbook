@@ -61,7 +61,8 @@ async def test_correction_with_an_unknown_guest_raises_a_fixable_issue(hass: Hom
 async def test_answer_by_push_raises_the_issue_too(hass: HomeAssistant, setup_guestbook):
     entry_id = await start_uncertain_visit(hass)
 
-    hass.bus.async_fire(ACTION_EVENT, {"action": f"GUESTBOOK_VISIT_{entry_id}", "reply_text": "Robin"})
+    token = setup_guestbook.runtime_data.async_get_entry(entry_id).question_token
+    hass.bus.async_fire(ACTION_EVENT, {"action": f"GUESTBOOK_VISIT_{entry_id}_{token}", "reply_text": "Robin"})
     await hass.async_block_till_done()
 
     assert issue(hass).data["name"] == "Robin"
