@@ -190,6 +190,14 @@ Targets: a phone is a `mobile_app` device. The notifier finds the `mobile_app` c
 
 Texts live in `core/messages.py` (`de` and `en`, other languages fall back to `en`, region ignored) and use `hass.config.language`: `push_title(kind, language)`, `push_message(kind, language, guests, entry_id=None)` (with an `entry_id` the id is appended; for the correction question also a hint to use `guestbook.correct_entry`).
 
+## Correction question (ticket 11)
+
+The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CLASSIFIED` change as the arrival push, for every open `UNCERTAIN` visit, when `push_correction` is on, whether or not a resident is home. Certain visits and unanswered rings get none.
+
+- Phone payload: `title`, `message`, `data.tag` = the entry id (a later push with the same tag replaces it) and `data.actions` from `correction_actions(language, entry_id, android=...)`: ids `GUESTBOOK_<KIND>_<entry_id>` for `RESIDENT`, `DELIVERY`, `VISIT`, `UNKNOWN` (titles "That was me", "Delivery", "Visit", "Don't know" and the German ones). `VISIT` has `behavior: textInput`, `textInputButtonTitle` and `textInputPlaceholder`. Android gets the first three. The OS comes from `os_name` in the data of the phone's `mobile_app` config entry (the registration; `Android` or `iOS`), compared case-insensitively.
+- Notify entities get the text with `Entry id: <id>` and the hint to answer with `guestbook.correct_entry`; no buttons.
+- The notifier listens to the bus event `mobile_app_notification_action`. `parse_action_id(action) -> (kind, entry_id) | None` accepts only the four ids above (upper case, non-empty entry id). A match calls `runtime.async_correct_entry(entry_id, kind, guest_name=reply_text for VISIT, source="push")`. Foreign action ids and a `ServiceValidationError` (unknown or deleted entry, ring still in its window) are ignored; the error is only logged at debug level. The listener is removed on unload.
+
 ## Storage
 
 One `Store` key `guestbook.entries`, version 1: `{"entries": [Entry.to_dict(), ...]}`. Delayed save (a few seconds); flush on unload.

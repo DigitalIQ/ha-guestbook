@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Sent at the start of each uncertain visit, also when a resident is home
-- [ ] Buttons "That was me", "Delivery", "Visit" (text input for the name), "Don't know"; Android phones get the first three only
-- [ ] Action ids contain the entry id, so answers find the right visit
-- [ ] `mobile_app_notification_action` with a matching action id saves the correction (source `push`)
-- [ ] Answers for unknown or deleted entries are ignored without errors
+- [x] Sent at the start of each uncertain visit, also when a resident is home
+- [x] Buttons "That was me", "Delivery", "Visit" (text input for the name), "Don't know"; Android phones get the first three only
+- [x] Action ids contain the entry id, so answers find the right visit
+- [x] `mobile_app_notification_action` with a matching action id saves the correction (source `push`)
+- [x] Answers for unknown or deleted entries are ignored without errors
