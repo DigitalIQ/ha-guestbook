@@ -166,6 +166,7 @@ class Entry:
     guests: list[dict[str, str]] = field(default_factory=list)  # [{"id": ..., "name": ...}]
     signals: list[Signal] = field(default_factory=list)
     reason: Reason | None = None
+    end_reason: Reason | None = None
     correction: Correction | None = None
     notes: list[str] = field(default_factory=list)
     settings: dict[str, float] = field(default_factory=dict)  # Settings snapshot at decision time
@@ -185,6 +186,7 @@ class Entry:
             "guests": [dict(guest) for guest in self.guests],
             "signals": [signal.to_dict() for signal in self.signals],
             "reason": self.reason.to_dict() if self.reason else None,
+            "end_reason": self.end_reason.to_dict() if self.end_reason else None,
             "correction": self.correction.to_dict() if self.correction else None,
             "notes": list(self.notes),
             "settings": dict(self.settings),
@@ -202,6 +204,7 @@ class Entry:
             guests=[dict(guest) for guest in data.get("guests", [])],
             signals=[Signal.from_dict(item) for item in data.get("signals", [])],
             reason=Reason.from_dict(data["reason"]) if data.get("reason") else None,
+            end_reason=Reason.from_dict(data["end_reason"]) if data.get("end_reason") else None,
             correction=Correction.from_dict(data["correction"]) if data.get("correction") else None,
             notes=list(data.get("notes", [])),
             settings=dict(data.get("settings", {})),

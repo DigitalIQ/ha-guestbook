@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Rule core: end at the door opening followed by the quiet period (reason `door_then_quiet`); door openings in the first 2 minutes do not count
-- [ ] Rule core: a second door opening inside the quiet period moves the end candidate
-- [ ] Rule core: end at start plus maximum duration (reason `max_duration`)
-- [ ] Integration: timers follow the rule core's next deadline
-- [ ] Integration: a visit open during a restart is rebuilt and ends correctly
-- [ ] Calendar shows the real end time
+- [x] Rule core: end at the door opening followed by the quiet period (reason `door_then_quiet`); door openings in the first 2 minutes do not count
+- [x] Rule core: a second door opening inside the quiet period moves the end candidate
+- [x] Rule core: end at start plus maximum duration (reason `max_duration`)
+- [x] Integration: timers follow the rule core's next deadline
+- [x] Integration: a visit open during a restart is rebuilt and ends correctly
+- [x] Calendar shows the real end time
