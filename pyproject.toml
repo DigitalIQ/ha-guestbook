@@ -9,3 +9,7 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/core/test_render.py" = ["RUF001"]  # the log uses an en dash for time ranges
+"tests/integration/test_visits_calendar.py" = ["RUF001"]

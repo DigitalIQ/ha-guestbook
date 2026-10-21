@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Description lists every signal in time order with time, readable source name and what happened
-- [ ] Presence on/off pairs of one sensor become one line with a time range
-- [ ] Description is not cut, also with hundreds of signals
-- [ ] Text in German and English, following the Home Assistant language
-- [ ] Description ends with the decision reason and, when present, the correction and notes
+- [x] Description lists every signal in time order with time, readable source name and what happened
+- [x] Presence on/off pairs of one sensor become one line with a time range
+- [x] Description is not cut, also with hundreds of signals
+- [x] Text in German and English, following the Home Assistant language
+- [x] Description ends with the decision reason and, when present, the correction and notes
