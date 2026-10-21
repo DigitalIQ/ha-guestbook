@@ -12,7 +12,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_DOORBELLS, CONF_DOORS, CONF_LOCKS, CONF_PRESENCE, CONF_RESIDENT_SIGNALS
-from .core import Signal, SignalKind
+from .core import Guest, Signal, SignalKind
 
 STATE_IGNORED = {STATE_UNAVAILABLE, STATE_UNKNOWN}
 RESIDENT_STATES = {STATE_ON, STATE_HOME, LockState.UNLOCKED}
@@ -75,10 +75,28 @@ def _lock(entity_id: str, old: State | None, new: State) -> Signal | None:
     return None
 
 
+def _guest_phone(guest_id: str, entity_id: str, old: State | None, new: State) -> Signal | None:
+    if not _changed(old, new):
+        return None
+    if new.state == STATE_HOME:
+        return Signal(SignalKind.GUEST_HOME, new.last_changed, entity_id, new.state, guest_id)
+    if old is not None and old.state == STATE_HOME:
+        return Signal(SignalKind.GUEST_AWAY, new.last_changed, entity_id, new.state, guest_id)
+    return None
+
+
 class SignalAdapter:
-    def __init__(self, hass: HomeAssistant, config: Mapping[str, Any], on_signal: Callable[[Signal], None]) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config: Mapping[str, Any],
+        guests: list[Guest],
+        on_signal: Callable[[Signal], None],
+    ) -> None:
         self._hass = hass
         self._on_signal = on_signal
+        self._trackers: dict[str, str] = {}
+        self._unsub_trackers: CALLBACK_TYPE | None = None
         self._converters: dict[str, list[Converter]] = {}
         for key, converter in (
             (CONF_DOORBELLS, _doorbell),
@@ -90,9 +108,47 @@ class SignalAdapter:
             for entity_id in config.get(key, []):
                 self._converters.setdefault(entity_id, []).append(converter)
 
+        self._set_trackers(guests)
+
     @callback
     def async_start(self) -> CALLBACK_TYPE:
-        return async_track_state_change_event(self._hass, list(self._converters), self._handle_state_change)
+        unsub = async_track_state_change_event(self._hass, list(self._converters), self._handle_state_change)
+        self._subscribe_trackers()
+
+        @callback
+        def stop() -> None:
+            unsub()
+            self._unsubscribe_trackers()
+
+        return stop
+
+    @callback
+    def async_set_guests(self, guests: list[Guest]) -> None:
+        self._unsubscribe_trackers()
+        self._set_trackers(guests)
+        self._subscribe_trackers()
+
+    def _set_trackers(self, guests: list[Guest]) -> None:
+        self._trackers = {tracker: guest.id for guest in guests for tracker in guest.trackers}
+
+    def _subscribe_trackers(self) -> None:
+        if self._trackers:
+            self._unsub_trackers = async_track_state_change_event(
+                self._hass, list(self._trackers), self._handle_tracker_change
+            )
+
+    def _unsubscribe_trackers(self) -> None:
+        if self._unsub_trackers:
+            self._unsub_trackers()
+            self._unsub_trackers = None
+
+    @callback
+    def _handle_tracker_change(self, event: Event[EventStateChangedData]) -> None:
+        old, new = event.data["old_state"], event.data["new_state"]
+        if new is None or (guest_id := self._trackers.get(new.entity_id)) is None:
+            return
+        if signal := _guest_phone(guest_id, new.entity_id, old, new):
+            self._on_signal(signal)
 
     @callback
     def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:

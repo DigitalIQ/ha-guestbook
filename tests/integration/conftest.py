@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -91,3 +92,27 @@ async def get_visits(hass: HomeAssistant) -> list[dict]:
 
 async def get_rings(hass: HomeAssistant) -> list[dict]:
     return await get_events(hass, "calendar.guestbook_rings")
+
+
+ALEX_PHONE = "device_tracker.alex_phone"
+ALEX_TABLET = "device_tracker.alex_tablet"
+SAM_PHONE = "device_tracker.sam_phone_guest"
+
+
+async def add_guest(hass: HomeAssistant, entry: MockConfigEntry, name: str, trackers: list[str]) -> str:
+    """Add a guest through the subentry flow and return its subentry id."""
+    for tracker in trackers:
+        if hass.states.get(tracker) is None:
+            hass.states.async_set(tracker, "not_home")
+    result = await hass.config_entries.subentries.async_init((entry.entry_id, "guest"), context={"source": "user"})
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"name": name, "trackers": trackers}
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    return next(s.subentry_id for s in entry.subentries.values() if s.title == name)
+
+
+async def set_tracker(hass: HomeAssistant, entity_id: str, state: str) -> None:
+    hass.states.async_set(entity_id, state)
+    await hass.async_block_till_done()

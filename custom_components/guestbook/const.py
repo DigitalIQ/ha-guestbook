@@ -10,6 +10,10 @@ CONF_PRESENCE = "presence"
 CONF_LOCKS = "locks"
 CONF_RESIDENTS = "residents"
 CONF_RESIDENT_SIGNALS = "resident_signals"
+CONF_NAME = "name"
+CONF_TRACKERS = "trackers"
+
+SUBENTRY_GUEST = "guest"
 
 ATTR_SOURCE = "source"
 SERVICE_RESIDENT_UNLOCK = "resident_unlock"
