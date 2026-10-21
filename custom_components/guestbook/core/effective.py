@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from .models import Entry
+from .models import CorrectionKind, Entry, normalize_name
 
 
 class EffectiveKind(StrEnum):
@@ -17,9 +17,9 @@ class EffectiveKind(StrEnum):
 
 
 CORRECTED_KINDS = {
-    "resident": EffectiveKind.RESIDENT_ARRIVAL,
-    "delivery": EffectiveKind.DELIVERY,
-    "visit": EffectiveKind.VISIT,
+    CorrectionKind.RESIDENT: EffectiveKind.RESIDENT_ARRIVAL,
+    CorrectionKind.DELIVERY: EffectiveKind.DELIVERY,
+    CorrectionKind.VISIT: EffectiveKind.VISIT,
 }
 
 
@@ -34,9 +34,9 @@ def effective_guests(entry: Entry) -> list[str]:
     """Guest names of the entry plus the name given in a visit correction."""
     names = [guest["name"] for guest in entry.guests]
     correction = entry.correction
-    if correction is None or correction.kind != "visit" or not correction.guest_name:
+    if correction is None or correction.kind is not CorrectionKind.VISIT or not correction.guest_name:
         return names
-    if correction.guest_name.casefold() not in {name.casefold() for name in names}:
+    if normalize_name(correction.guest_name) not in {normalize_name(name) for name in names}:
         names.append(correction.guest_name)
     return names
 

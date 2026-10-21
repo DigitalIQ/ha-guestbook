@@ -27,6 +27,7 @@ from .core import (
     Certainty,
     Change,
     ChangeKind,
+    CorrectionKind,
     Entry,
     EntryKind,
     PushKind,
@@ -78,7 +79,7 @@ class Notifier:
         if (parsed := parse_action_id(str(event.data.get("action", "")))) is None:
             return
         kind, entry_id = parsed
-        guest_name = (str(event.data.get("reply_text") or "").strip() or None) if kind == "visit" else None
+        guest_name = (str(event.data.get("reply_text") or "").strip() or None) if kind is CorrectionKind.VISIT else None
         try:
             self._runtime.async_correct_entry(entry_id, kind, guest_name=guest_name, source=SOURCE_PUSH)
         except ServiceValidationError as err:

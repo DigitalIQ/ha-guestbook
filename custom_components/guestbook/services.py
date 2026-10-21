@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import probatio
@@ -19,7 +20,6 @@ from .const import (
     ATTR_NOTE,
     ATTR_SOURCE,
     ATTR_START,
-    CORRECTION_KINDS,
     DOMAIN,
     SERVICE_ADD_NOTE,
     SERVICE_ADD_VISIT,
@@ -27,14 +27,14 @@ from .const import (
     SERVICE_EXPORT,
     SERVICE_RESIDENT_UNLOCK,
 )
-from .core import Signal, SignalKind, effective_end, effective_guests, effective_start
+from .core import CorrectionKind, Signal, SignalKind, effective_end, effective_guests, effective_start
 from .runtime import GuestbookRuntime
 
 RESIDENT_UNLOCK_SCHEMA = probatio.Schema({probatio.Optional(ATTR_SOURCE): cv.string})
 CORRECT_ENTRY_SCHEMA = probatio.Schema(
     {
         probatio.Required(ATTR_ENTRY_ID): cv.string,
-        probatio.Required(ATTR_KIND): probatio.In(CORRECTION_KINDS),
+        probatio.Required(ATTR_KIND): probatio.Coerce(CorrectionKind),
         probatio.Optional(ATTR_GUEST_NAME): cv.string,
         probatio.Optional(ATTR_START): cv.datetime,
         probatio.Optional(ATTR_END): cv.datetime,
@@ -55,7 +55,7 @@ ADD_NOTE_SCHEMA = probatio.Schema(
 EXPORT_SCHEMA = probatio.Schema({probatio.Optional(ATTR_START): cv.datetime, probatio.Optional(ATTR_END): cv.datetime})
 
 
-def _utc(value):
+def _utc(value: datetime | None) -> datetime | None:
     return dt_util.as_utc(value) if value is not None else None
 
 
@@ -89,7 +89,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         end = effective_end(entry)
         return {
             "entry_id": entry.id,
-            "kind": call.data[ATTR_KIND],
+            "kind": call.data[ATTR_KIND].value,
             "decision": entry.kind.value,
             "guests": effective_guests(entry),
             "start": effective_start(entry).isoformat(),

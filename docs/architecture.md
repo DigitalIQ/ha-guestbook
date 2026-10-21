@@ -8,12 +8,13 @@ Contract for everyone building Guestbook. The spec says *what*; this file says *
 custom_components/guestbook/
   core/                 pure Python, no homeassistant imports
     __init__.py         re-exports the public names below
-    models.py           Signal, SignalKind, Entry, EntryKind, Certainty, Reason, Correction, Guest, Settings, Change, ChangeKind
+    models.py           Signal, SignalKind, Entry, EntryKind, Certainty, Reason, Correction, CorrectionKind, Guest, Settings, Change, ChangeKind, normalize_name
     engine.py           Engine (the rule core)
+    manual.py           manual_visit (the entry for add_visit)
     effective.py        EffectiveKind, effective_kind/guests/start/end (entry + correction)
     render.py           renderer: render_description, render_title (entry + language -> text)
     archive.py          expired_entries, entries_in_range, to_jsonl (retention purge and export selection)
-    messages.py         push texts and buttons: PushKind, push_title, push_message, correction_actions, action_id, parse_action_id
+    messages.py         push texts and buttons: PushKind, unknown_guest, push_title, push_message, correction_actions, action_id, parse_action_id
   __init__.py           setup/unload, wires store, engine, adapter, timers, platforms
   const.py              DOMAIN, config keys, defaults, event names
   config_flow.py        config flow, options flow, guest subentry flow
@@ -58,9 +59,14 @@ class Certainty(StrEnum):
 @dataclass
 class Reason: code: str; detail: str = ""
 
+class CorrectionKind(StrEnum):
+    RESIDENT, DELIVERY, VISIT, UNKNOWN     # values "resident", "delivery", "visit", "unknown" (JSON, action field, button ids)
+
+def normalize_name(name: str) -> str       # strip + casefold; the only way guest names are compared
+
 @dataclass
 class Correction:
-    kind: str              # resident | delivery | visit | unknown
+    kind: CorrectionKind
     time: datetime
     source: str            # push | action
     guest_name: str | None = None
@@ -138,20 +144,20 @@ Guest left during downtime: `guest_absent(guest_id, tracker, now)` appends a `GU
 `core/effective.py` holds the only logic that applies a correction (calendar and sensor code only call it):
 
 - `effective_kind(entry) -> EffectiveKind` (`PENDING_RING`, `VISIT`, `UNANSWERED_RING`, `RESIDENT_ARRIVAL`, `DELIVERY`): correction `resident` gives `RESIDENT_ARRIVAL`, `delivery` gives `DELIVERY`, `visit` gives `VISIT` (also for unanswered rings and resident arrivals), `unknown` and no correction keep the kind of the decision. `DELIVERY` exists only here; it is never stored as `Entry.kind`.
-- `effective_guests(entry)`: profile names plus the correction's `guest_name` (case-insensitive, no duplicate). `effective_start` / `effective_end`: the correction's start and end, else the entry's.
+- `effective_guests(entry)`: profile names plus the correction's `guest_name` (compared with `normalize_name`, no duplicate). `effective_start` / `effective_end`: the correction's start and end, else the entry's.
 - Visits calendar: effective kind `VISIT`. Rings calendar: `UNANSWERED_RING` and `DELIVERY`. Resident arrivals appear nowhere. `render_title` follows the effective kind (`Delivery` / `Lieferung`) and guests. An entry counts as open in the calendar while `effective_end` is `None`.
 - `Engine.close(entry_id, now)` ends an open `VISIT` (`CLOSED`, `end` = now, `end_reason` `corrected`). It returns `[]` for unknown ids, closed entries and pending rings. A closed visit gets no more signals, its deadline is gone.
 
 Runtime methods (`GuestbookRuntime`, all raise `ServiceValidationError` with a translation key; the `entry_id` is a placeholder):
 
-- `async_correct_entry(entry_id, kind, *, guest_name, start, end, note, source="action") -> Entry`: stores `Correction(kind, now, source, ...)` in `entry.correction` next to the decision (a later correction replaces the earlier one), saves, closes the visit in the engine for `resident` and `delivery`, fires `guestbook_visit_corrected` (`entry_id`, `kind`, `guest_name`, `guests`, `certainty`, `start`, `end`; guests, start and end are the effective values after the correction) and updates the entities. Errors: `unknown_entry`, `entry_pending` (a ring still in its window is not correctable), `end_before_start` (checked on the effective start and end).
-- `async_add_visit(guests, start, end, note=None) -> Entry`: a closed `VISIT`, `certainty` `certain`, `reason` `manual`, `settings` snapshot of the engine. Guest names are matched to the guest profiles by name, case-insensitive (profile id and name); other names are free names with id `""`. No bus events (it is not a live visit).
+- `async_correct_entry(entry_id, kind: CorrectionKind, *, guest_name, start, end, note, source="action") -> Entry`: stores `Correction(kind, now, source, ...)` in `entry.correction` next to the decision (a later correction replaces the earlier one), saves, closes the visit in the engine for `resident` and `delivery`, fires `guestbook_visit_corrected` (`entry_id`, `kind`, `guest_name`, `guests`, `certainty`, `start`, `end`; guests, start and end are the effective values after the correction) and updates the entities. Errors: `unknown_entry`, `entry_pending` (a ring still in its window is not correctable), `end_before_start` (checked on the effective start and end).
+- `async_add_visit(guests, start, end, note=None) -> Entry`: checks the times, builds the entry with `core.manual_visit(names, profiles, start, end, note, settings)` and stores it. The entry is a closed `VISIT`, `certainty` `certain`, `reason` `manual`, `settings` snapshot of the engine. Guest names are matched to the guest profiles with `normalize_name` (profile id and name); other names are free names with id `""`; duplicates and blank names are dropped. No bus events (it is not a live visit).
 - `async_add_note(entry_id, note) -> Entry`: appends to `entry.notes`. Error: `unknown_entry`.
 - `async_entries(*kinds: EffectiveKind)` filters by effective kind. `async_open_visits()` and the current visit sensor use `effective_guests`.
 
 Actions (`services.py`, schemas with `probatio`, descriptions in `services.yaml`, texts in `strings.json` and `translations/{en,de}.json`):
 
-- `guestbook.correct_entry`: `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note`. `SupportsResponse.OPTIONAL`: with a response it returns `entry_id`, `kind`, `decision`, `guests`, `start`, `end` (effective, ISO). Start and end are only display overrides; an end on an open visit does not close it.
+- `guestbook.correct_entry`: `entry_id`, `kind` (a `CorrectionKind` value), optional `guest_name`, `start`, `end`, `note`. `SupportsResponse.OPTIONAL`: with a response it returns `entry_id`, `kind`, `decision`, `guests`, `start`, `end` (effective, ISO). Start and end are only display overrides; an end on an open visit does not close it.
 - `guestbook.add_visit`: optional `guests` (list of names), `start`, `end`, optional `note`.
 - `guestbook.add_note`: `entry_id`, `note`.
 - All use the first loaded entry (single config entry) and raise `not_loaded` when there is none. Naive datetimes count as local time.
@@ -176,7 +182,7 @@ Sensors (ticket 06): `entity.py` holds `GuestbookEntity` (has_entity_name, no po
 
 ## Runtime
 
-`GuestbookRuntime` lives in `entry.runtime_data`. It owns the engine and the store, turns adapter signals into `engine.handle`, schedules one timer at `engine.next_deadline()`, saves changed entries, fires bus events, and calls registered listeners (`async_add_listener(cb) -> unsub`) so entities update. `async_open_visits()` returns the open visits, most recent first. Corrections and additions go through runtime methods, not straight to the store.
+`GuestbookRuntime` lives in `entry.runtime_data`. Code that reads it types the entry as `GuestbookConfigEntry` (`ConfigEntry[GuestbookRuntime]`, defined in `__init__.py`; modules imported by `__init__.py` import it under `TYPE_CHECKING`). It owns the engine and the store, turns adapter signals into `engine.handle`, schedules one timer at `engine.next_deadline()`, saves changed entries, fires bus events, and calls registered listeners (`async_add_listener(cb) -> unsub`) so entities update. `async_open_visits()` returns the open visits, most recent first. Corrections and additions go through runtime methods, not straight to the store.
 
 ## Pushes (ticket 10)
 
@@ -199,7 +205,7 @@ The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CL
 
 - Phone payload: `title`, `message`, `data.tag` = the entry id (a later push with the same tag replaces it) and `data.actions` from `correction_actions(language, entry_id, android=...)`: ids `GUESTBOOK_<KIND>_<entry_id>` for `RESIDENT`, `DELIVERY`, `VISIT`, `UNKNOWN` (titles "That was me", "Delivery", "Visit", "Don't know" and the German ones). `VISIT` has `behavior: textInput`, `textInputButtonTitle` and `textInputPlaceholder`. Android gets the first three. The OS comes from `os_name` in the data of the phone's `mobile_app` config entry (the registration; `Android` or `iOS`), compared case-insensitively.
 - Notify entities get the text with `Entry id: <id>` and the hint to answer with `guestbook.correct_entry`; no buttons.
-- The notifier listens to the bus event `mobile_app_notification_action`. `parse_action_id(action) -> (kind, entry_id) | None` accepts only the four ids above (upper case, non-empty entry id). A match calls `runtime.async_correct_entry(entry_id, kind, guest_name=reply_text for VISIT, source="push")`. Foreign action ids and a `ServiceValidationError` (unknown or deleted entry, ring still in its window) are ignored; the error is only logged at debug level. The listener is removed on unload.
+- The notifier listens to the bus event `mobile_app_notification_action`. `parse_action_id(action) -> (CorrectionKind, entry_id) | None` accepts only the four ids above (upper case, non-empty entry id). A match calls `runtime.async_correct_entry(entry_id, kind, guest_name=reply_text for VISIT, source="push")`. Foreign action ids and a `ServiceValidationError` (unknown or deleted entry, ring still in its window) are ignored; the error is only logged at debug level. The listener is removed on unload.
 
 ## Export and retention (ticket 13)
 
@@ -211,7 +217,7 @@ The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CL
 
 `GuestbookOptionsFlow` is a menu (`init`) with four steps; each step saves on its own and finishes the flow:
 
-- `sources`: `doorbells`, `doors`, `presence`, `locks` (the selectors of the config flow). `residents`: `residents`, `resident_signals`. Both write into `entry.data` (`async_update_entry`), where the config flow put the sources; the options stay as they are. `SOURCE_KEYS` in `const.py` lists the six source keys.
+- `sources`: `doorbells`, `doors`, `presence`, `locks` (the selectors of the config flow; the setup form `SOURCES_SCHEMA` is built from the `sources` and `residents` step schemas). `residents`: `residents`, `resident_signals`. Both write into `entry.data` (`async_update_entry`), where the config flow put the sources; the options stay as they are. `SOURCE_KEYS` in `const.py` lists the six source keys.
 - `rules` writes numbers into `entry.options`: `ring_window`, `resident_window`, `quiet_period`, `entry_grace`, `phone_grace` (minutes), `max_duration` (hours), `retention` (days). `settings.py`: `settings_from_options(options) -> Settings` (a missing key keeps the core default), `rule_defaults()` (defaults in the option units, taken from `Settings()`).
 - `pushes` writes the push options. Steps merge their fields into the existing options, so the rules survive a push change and the other way round.
 

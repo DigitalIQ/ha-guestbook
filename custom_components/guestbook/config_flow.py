@@ -49,18 +49,6 @@ def _entities(*domains: str) -> selector.EntitySelector:
     return selector.EntitySelector(selector.EntitySelectorConfig(domain=list(domains) or None, multiple=True))
 
 
-SOURCES_SCHEMA = probatio.Schema(
-    {
-        probatio.Optional(CONF_DOORBELLS, default=[]): _entities("event", "binary_sensor"),
-        probatio.Optional(CONF_DOORS, default=[]): _entities("binary_sensor"),
-        probatio.Optional(CONF_PRESENCE, default=[]): _entities("binary_sensor"),
-        probatio.Optional(CONF_LOCKS, default=[]): _entities("lock"),
-        probatio.Optional(CONF_RESIDENTS, default=[]): _entities("person"),
-        probatio.Optional(CONF_RESIDENT_SIGNALS, default=[]): _entities(),
-    }
-)
-
-
 GUEST_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_NAME): selector.TextSelector(),
@@ -83,6 +71,10 @@ RESIDENTS_STEP_SCHEMA = probatio.Schema(
         probatio.Optional(CONF_RESIDENT_SIGNALS, default=[]): _entities(),
     }
 )
+
+
+# The setup form asks for the sources and the residents in one go.
+SOURCES_SCHEMA = probatio.Schema({**SOURCES_STEP_SCHEMA.schema, **RESIDENTS_STEP_SCHEMA.schema})
 
 
 def _number(unit: str, minimum: float, maximum: float, step: float) -> selector.NumberSelector:
