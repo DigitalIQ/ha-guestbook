@@ -295,3 +295,23 @@ async def test_restored_visit_stays_open_while_one_of_two_phones_is_still_home(
     await advance(hass, freezer, timedelta(minutes=10))
 
     assert hass.states.get("binary_sensor.alex_visiting").state == "on"
+
+
+async def test_restored_visit_continues_when_the_phone_returned_during_the_downtime(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await advance(hass, freezer, timedelta(minutes=10))
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    await advance(hass, freezer, timedelta(minutes=2))
+    hass.states.async_set(ALEX_PHONE, "home")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+    await advance(hass, freezer, timedelta(minutes=10))
+
+    (event,) = await get_visits(hass)
+    assert event["start"] == "2026-10-21T14:00:00+00:00"
+    assert hass.states.get("binary_sensor.alex_visiting").state == "on"

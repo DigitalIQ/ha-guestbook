@@ -49,6 +49,7 @@ SWITCHES = {
 }
 WHEN_NO_RESIDENT_HOME = (PushKind.ARRIVAL, PushKind.END)
 SKIPPED_END_REASONS = {"corrected"}
+SKIPPED_START_REASONS = {"guest_phone_at_start"}
 
 
 class Notifier:
@@ -88,7 +89,8 @@ class Notifier:
         entry = change.entry
         if entry.kind is EntryKind.VISIT and change.previous is None:
             if change.kind in (ChangeKind.OPENED, ChangeKind.CLASSIFIED) and entry.open:
-                self._push(PushKind.ARRIVAL, entry)
+                if entry.reason is None or entry.reason.code not in SKIPPED_START_REASONS:
+                    self._push(PushKind.ARRIVAL, entry)
                 if entry.certainty is Certainty.UNCERTAIN:
                     self._push(PushKind.CORRECTION, entry)
             elif change.kind is ChangeKind.CLOSED and entry.end is not None:
