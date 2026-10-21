@@ -17,7 +17,7 @@ from .repairs import GuestSuggestions, SourceMonitor, async_delete_issues
 from .runtime import GuestbookRuntime
 from .services import async_register_services
 from .settings import settings_from_options
-from .store import GuestbookStore
+from .store import GuestbookStore, async_remove_stored_entries
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.CALENDAR, Platform.SENSOR]
 
@@ -83,3 +83,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) -
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     async_delete_issues(hass)
+    await async_remove_stored_entries(hass)

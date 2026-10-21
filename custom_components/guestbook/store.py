@@ -39,3 +39,8 @@ class GuestbookStore:
 
     def _data(self) -> dict[str, Any]:
         return {"entries": [entry.to_dict() for entry in self._entries.values()]}
+
+
+async def async_remove_stored_entries(hass: HomeAssistant) -> None:
+    """Delete the storage file of the entries (used when the integration is removed)."""
+    await Store(hass, STORAGE_VERSION, STORAGE_KEY).async_remove()
