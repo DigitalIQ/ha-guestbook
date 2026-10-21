@@ -146,10 +146,11 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Rules (default settings in brackets)
 
-- Ring window [5 min]: a door opening or presence on within this time after a ring turns the ring into a visit.
-- Resident window [3 min]: a resident signal from this time before a ring until the end of the ring window makes the ring a resident arrival.
+- Ring window [5 min]: a door opening or presence on within this time after a ring turns the ring into a visit. A signal exactly at the end of the window still counts.
+- Resident window [3 min]: a resident signal from this time before a ring until the end of the ring window makes the ring a resident arrival. The rule core remembers resident signals in memory only, so a restart forgets them.
 - A door opening or presence with no ring before it starts nothing (residents leaving and coming back).
-- Quiet period [10 min]: an uncertain visit ends at the first door opening after which the door stays closed for this long. The end time is that door opening. Entry grace [2 min]: a door opening in the first 2 minutes after the signal that turned the ring into a visit (the guest coming in) does not count. The grace counts from that signal, not from the ring.
+- A ring plus a door opening or presence while a certain visit is open does not start a new entry. Both are added to that visit.
+- Quiet period [10 min]: an uncertain visit ends at the first door opening after which the door stays closed for this long. The end time is that door opening. Only door openings count for this check; door closings are ignored. Entry grace [2 min]: a door opening in the first 2 minutes after the signal that turned the ring into a visit (the guest coming in) does not count. The grace counts from that signal, not from the ring.
 - Maximum duration [4 h]: an uncertain visit with no detected end ends at start plus this time, reason `max_duration`.
 - Phone grace period [5 min]: a guest phone must stay away this long before it counts as leaving. The end time is the moment it went away.
 - A certain visit ends when all its guest phones have left. A guest phone joining an open uncertain visit makes it certain; its later end follows the phone rule.
@@ -158,7 +159,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Data shape of an entry
 
-`id`, `kind` (`visit`, `unanswered_ring`, `resident_arrival`), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `decision`, `reason` (`code`, `text`), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push` or `action`), `notes`, `settings` snapshot. The export writes exactly this shape, one entry per line.
+`id`, `kind` (the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival`, and `pending_ring` while a ring waits for its window to end), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `reason` (`code`, `detail`; why the entry got its kind), `end_reason` (`code`, `detail`; why a visit ended), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push` or `action`), `notes`, `settings` snapshot. The storage also keeps `rule_state`, private bookkeeping of the rule core. The export writes this shape, one entry per line, without `rule_state` and without pending rings.
 
 ### Platform
 
@@ -190,5 +191,11 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 ## Further Notes
 
 - HACS becomes the Marketplace inside Home Assistant with 2026.11 (core PR #183502 is merged). Publishing requirements stay the same: HACS action and Hassfest without errors, `version` and `issue_tracker` in the manifest, `brand/icon.png`. The manifest `version` should match the release tag.
+- `guestbook.resident_unlock` has an optional `source` text. It is stored with the resident signal.
+- `guestbook.correct_entry` and `guestbook.export` return response data when called with a response: the corrected entry (`entry_id`, `kind`, `decision`, `guests`, `start`, `end`) and the export `path` and `count`.
+- `guestbook_visit_ended` carries the end `reason`. `guestbook_visit_corrected` carries the effective `guests`, `certainty`, `start` and `end` next to `entry_id`, `kind` and `guest_name`.
+- A `resident` or `delivery` correction closes an open visit at once. Its end reason is `corrected`.
+- No arrival push for a visit that starts because a guest phone was already home at startup or when the guest was added (`guest_phone_at_start`). No end push for a visit closed by a correction (`corrected`).
+- Removing the integration deletes its stored data.
 - The README needs a privacy section: Guestbook stores personal data of third parties (who visited, when, which phone). It explains retention and how to export and delete data.
 - Primary sources checked on 2026-10-21: HACS publish docs and action docs, HA brands docs and blog of 2026-02-24, calendar and notify entity docs, Companion app actionable notifications docs, config subentries docs, PyPI metadata of `pytest-homeassistant-custom-component` 0.13.373 (pins HA 2026.10.2, Python ≥ 3.14).
