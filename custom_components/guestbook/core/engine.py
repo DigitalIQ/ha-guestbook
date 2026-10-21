@@ -76,22 +76,38 @@ class Engine:
         return changes
 
     def guest_present(self, guest_id: str, tracker: str, now: datetime) -> list[Change]:
-        """Report a guest phone that is already home (startup, new guest); a visit that has the guest is left alone."""
-        if any(g["id"] == guest_id for e in self._active.values() if e.kind is EntryKind.VISIT for g in e.guests):
-            return []
+        """Report a guest phone that is already home (startup, new guest).
+
+        A visit that has the guest is left alone, except that a pending leave of this phone is cancelled.
+        """
+        changes = self.advance(now)
         signal = Signal(SignalKind.GUEST_HOME, now, tracker, "home", guest_id)
-        return [*self.advance(now), *self._handle_guest_home(signal, GUEST_PHONE_AT_START)]
+        holders = [
+            v for v in self._active.values() if v.kind is EntryKind.VISIT and any(g["id"] == guest_id for g in v.guests)
+        ]
+        if not holders:
+            return [*changes, *self._handle_guest_home(signal, GUEST_PHONE_AT_START)]
+        for visit in holders:
+            last = self._last_phone_signal(visit, tracker)
+            if last is not None and last.kind is SignalKind.GUEST_AWAY:
+                visit.signals.append(signal)
+                changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
+        return changes
 
     def guest_absent(self, guest_id: str, tracker: str, now: datetime) -> list[Change]:
         """Report a guest phone that is not home at startup; visits that last saw it home get an away signal."""
         signal = Signal(SignalKind.GUEST_AWAY, now, tracker, guest_id=guest_id)
         changes = []
         for visit in self._active.values():
-            last = next((s for s in reversed(visit.signals) if s.source == tracker and s.kind in PHONE_SIGNALS), None)
+            last = self._last_phone_signal(visit, tracker)
             if visit.kind is EntryKind.VISIT and last is not None and last.kind is SignalKind.GUEST_HOME:
                 visit.signals.append(signal)
                 changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
         return changes
+
+    @staticmethod
+    def _last_phone_signal(visit: Entry, tracker: str) -> Signal | None:
+        return next((s for s in reversed(visit.signals) if s.source == tracker and s.kind in PHONE_SIGNALS), None)
 
     def advance(self, now: datetime) -> list[Change]:
         due = sorted(

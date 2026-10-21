@@ -273,6 +273,33 @@ def test_guest_present_does_nothing_for_a_restored_visit_with_the_guest():
     assert len(restored.active_entries()) == 1
 
 
+def test_guest_present_cancels_the_pending_leave_of_a_restored_visit():
+    visit = Engine(Settings(), guests=[ALEX]).handle(home("13:00"))[0].entry
+    visit.signals.append(away("13:58"))
+    restored = Engine(Settings(), guests=[ALEX], entries=[Entry.from_dict(visit.to_dict())])
+    assert restored.next_deadline() == at("14:03")
+
+    (change,) = restored.guest_present("alex", ALEX_PHONE, at("14:00"))
+
+    assert change.kind is ChangeKind.SIGNAL_ADDED
+    assert [(s.kind, s.time) for s in change.entry.signals][-1] == (SignalKind.GUEST_HOME, at("14:00"))
+    assert restored.next_deadline() is None
+    assert restored.advance(at("15:00")) == []
+
+
+def test_guest_present_after_the_grace_period_closes_the_old_visit_and_opens_a_new_one():
+    visit = Engine(Settings(), guests=[ALEX]).handle(home("13:00"))[0].entry
+    visit.signals.append(away("13:30"))
+    restored = Engine(Settings(), guests=[ALEX], entries=[Entry.from_dict(visit.to_dict())])
+
+    closed, opened = restored.guest_present("alex", ALEX_PHONE, at("14:00"))
+
+    assert closed.kind is ChangeKind.CLOSED
+    assert closed.entry.end == at("13:30")
+    assert opened.kind is ChangeKind.OPENED
+    assert opened.entry.reason.code == "guest_phone_at_start"
+
+
 def test_guest_present_joins_an_open_visit_that_lacks_the_guest():
     engine = Engine(Settings(), guests=[ALEX, SAM])
     (opened,) = engine.handle(home("13:00", "sam", SAM_PHONE))

@@ -4,7 +4,7 @@ from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
-from pytest_homeassistant_custom_component.common import async_mock_service
+from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
 
 from custom_components.guestbook.const import CONF_RESIDENTS
 from custom_components.guestbook.core import EffectiveKind
@@ -94,6 +94,23 @@ async def test_arrival_push_goes_to_the_phone_and_the_notify_entity_with_the_ent
         "title": "Visit",
         "message": f"Arrived: Alex. Entry id: {entry_id}",
     }
+
+
+async def test_phone_already_home_at_startup_sends_no_arrival_push_but_fires_the_event(
+    hass: HomeAssistant, setup_guestbook, hass_storage
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    calls = await select_targets(hass, setup_guestbook)
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    hass_storage["guestbook.entries"]["data"]["entries"].clear()
+    hass.states.async_set(ALEX_PHONE, "home")
+    started = async_capture_events(hass, "guestbook_visit_started")
+
+    assert await hass.config_entries.async_setup(setup_guestbook.entry_id)
+    await hass.async_block_till_done()
+
+    assert calls == []
+    assert [e.data["guests"] for e in started] == [["Alex"]]
 
 
 async def test_arrival_push_uses_the_home_assistant_language(hass: HomeAssistant, setup_guestbook):
