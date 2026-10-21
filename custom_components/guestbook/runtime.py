@@ -49,6 +49,12 @@ class GuestbookRuntime:
         return [entry for entry in self._store.entries if entry.kind is kind]
 
     @callback
+    def async_open_visits(self) -> list[Entry]:
+        """Return the open visits, the most recent first."""
+        visits = (entry for entry in self.async_entries(EntryKind.VISIT) if entry.open)
+        return sorted(visits, key=lambda entry: entry.start, reverse=True)
+
+    @callback
     def _apply(self, changes: list[Change]) -> None:
         for change in changes:
             if change.kind is ChangeKind.CLOSED and change.entry.kind is EntryKind.PENDING_RING:
