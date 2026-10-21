@@ -8,6 +8,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from custom_components.guestbook.const import (
     CONF_DOORBELLS,
     CONF_DOORS,
+    CONF_LOCKS,
     CONF_PRESENCE,
     CONF_RESIDENT_SIGNALS,
     CONF_RESIDENTS,
@@ -17,6 +18,11 @@ from custom_components.guestbook.const import (
 DOORBELL = "event.front_doorbell"
 DOOR = "binary_sensor.front_door"
 PRESENCE = "binary_sensor.hall_presence"
+LOCK = "lock.front_door_lock"
+FINGERPRINT = "event.fingerprint_reader"
+RESIDENT_PHONE = "device_tracker.sam_phone"
+RESIDENT_BUTTON = "binary_sensor.resident_button"
+RESIDENT_LOCK = "lock.back_door_lock"
 
 
 @pytest.fixture
@@ -28,8 +34,9 @@ def config_entry() -> MockConfigEntry:
             CONF_DOORBELLS: [DOORBELL],
             CONF_DOORS: [DOOR],
             CONF_PRESENCE: [PRESENCE],
+            CONF_LOCKS: [LOCK],
             CONF_RESIDENTS: [],
-            CONF_RESIDENT_SIGNALS: [],
+            CONF_RESIDENT_SIGNALS: [FINGERPRINT, RESIDENT_PHONE, RESIDENT_BUTTON, RESIDENT_LOCK],
         },
     )
 
@@ -40,6 +47,11 @@ async def setup_guestbook(hass: HomeAssistant, config_entry: MockConfigEntry, fr
     hass.states.async_set(DOORBELL, "unknown")
     hass.states.async_set(DOOR, "off")
     hass.states.async_set(PRESENCE, "off")
+    hass.states.async_set(LOCK, "locked")
+    hass.states.async_set(FINGERPRINT, "unknown")
+    hass.states.async_set(RESIDENT_PHONE, "not_home")
+    hass.states.async_set(RESIDENT_BUTTON, "off")
+    hass.states.async_set(RESIDENT_LOCK, "locked")
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()

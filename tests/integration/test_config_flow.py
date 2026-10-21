@@ -4,6 +4,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from custom_components.guestbook.const import (
     CONF_DOORBELLS,
     CONF_DOORS,
+    CONF_LOCKS,
     CONF_PRESENCE,
     CONF_RESIDENT_SIGNALS,
     CONF_RESIDENTS,
@@ -22,6 +23,7 @@ async def test_user_creates_an_entry_with_the_selected_sources(hass: HomeAssista
             CONF_DOORBELLS: ["event.front_doorbell", "binary_sensor.side_bell"],
             CONF_DOORS: ["binary_sensor.front_door"],
             CONF_PRESENCE: ["binary_sensor.hall_presence"],
+            CONF_LOCKS: ["lock.front_door_lock"],
             CONF_RESIDENTS: ["person.sam"],
             CONF_RESIDENT_SIGNALS: ["sensor.fingerprint_reader"],
         },
@@ -33,6 +35,7 @@ async def test_user_creates_an_entry_with_the_selected_sources(hass: HomeAssista
         CONF_DOORBELLS: ["event.front_doorbell", "binary_sensor.side_bell"],
         CONF_DOORS: ["binary_sensor.front_door"],
         CONF_PRESENCE: ["binary_sensor.hall_presence"],
+        CONF_LOCKS: ["lock.front_door_lock"],
         CONF_RESIDENTS: ["person.sam"],
         CONF_RESIDENT_SIGNALS: ["sensor.fingerprint_reader"],
     }
@@ -48,6 +51,7 @@ async def test_every_source_is_optional(hass: HomeAssistant):
         CONF_DOORBELLS: [],
         CONF_DOORS: [],
         CONF_PRESENCE: [],
+        CONF_LOCKS: [],
         CONF_RESIDENTS: [],
         CONF_RESIDENT_SIGNALS: [],
     }

@@ -8,6 +8,7 @@
           "doorbells": "Doorbells",
           "doors": "Door contacts",
           "presence": "Presence sensors",
+          "locks": "Locks",
           "residents": "Residents",
           "resident_signals": "Resident signals"
         },
@@ -15,6 +16,7 @@
           "doorbells": "Doorbell event entities or binary sensors. A ring starts the ring window.",
           "doors": "Door contacts. An opening after a ring turns it into a visit.",
           "presence": "Presence or motion sensors inside the home. Presence after a ring also turns it into a visit.",
+          "locks": "Locks whose state changes appear in the visit log.",
           "residents": "Person entities of the people who live here. Residents never become visits.",
           "resident_signals": "Entities that prove a resident is arriving, for example a fingerprint reader or a resident phone."
         }
@@ -28,6 +30,23 @@
     "calendar": {
       "visits": {
         "name": "Visits"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Guestbook is not set up or not loaded."
+    }
+  },
+  "services": {
+    "resident_unlock": {
+      "name": "Resident unlock",
+      "description": "Reports that a resident is arriving or opening the door, so a ring close to it is not a visit.",
+      "fields": {
+        "source": {
+          "name": "Source",
+          "description": "Optional text that says where the signal came from, for example the name of a lock."
+        }
       }
     }
   }
