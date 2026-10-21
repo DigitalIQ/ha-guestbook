@@ -27,7 +27,7 @@ from .const import (
     SERVICE_EXPORT,
     SERVICE_RESIDENT_UNLOCK,
 )
-from .core import CorrectionKind, Signal, SignalKind, effective_end, effective_guests, effective_start
+from .core import CorrectionKind, Signal, SignalKind, clean_guest_name, effective_end, effective_guests, effective_start
 from .runtime import GuestbookRuntime
 
 RESIDENT_UNLOCK_SCHEMA = probatio.Schema({probatio.Optional(ATTR_SOURCE): cv.string})
@@ -41,9 +41,18 @@ CORRECT_ENTRY_SCHEMA = probatio.Schema(
         probatio.Optional(ATTR_NOTE): cv.string,
     }
 )
+
+
+def _guest_name(value: Any) -> str:
+    """One guest of `add_visit`: a text (numbers become text), not blank, cut to the maximum length."""
+    if not (name := clean_guest_name(cv.string(value))):
+        raise probatio.Invalid("a guest name must not be empty")
+    return name
+
+
 ADD_VISIT_SCHEMA = probatio.Schema(
     {
-        probatio.Optional(ATTR_GUESTS, default=[]): cv.ensure_list,
+        probatio.Optional(ATTR_GUESTS, default=[]): probatio.All(cv.ensure_list, [_guest_name]),
         probatio.Required(ATTR_START): cv.datetime,
         probatio.Required(ATTR_END): cv.datetime,
         probatio.Optional(ATTR_NOTE): cv.string,

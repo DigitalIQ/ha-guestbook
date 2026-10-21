@@ -39,6 +39,7 @@ from .core import (
     Guest,
     Settings,
     Signal,
+    clean_guest_name,
     effective_end,
     effective_guests,
     effective_kind,
@@ -61,6 +62,7 @@ class GuestbookRuntime:
         self._unsub_purge: CALLBACK_TYPE | None = None
         self._listeners: list[Callable[[], None]] = []
         self._change_listeners: list[Callable[[Change], None]] = []
+        self._purge_listeners: list[Callable[[], None]] = []
 
     @callback
     def async_start(self) -> None:
@@ -90,6 +92,8 @@ class GuestbookRuntime:
             self._store.async_remove(entry.id)
         if expired:
             self._notify()
+            for listener in list(self._purge_listeners):
+                listener()
         return len(expired)
 
     async def async_export(self, start: datetime | None = None, end: datetime | None = None) -> tuple[str, int]:
@@ -103,15 +107,20 @@ class GuestbookRuntime:
 
     @staticmethod
     def _write(directory: Path, stem: str, content: str) -> Path:
-        """Write `<stem>.jsonl`; a second export in the same second gets `-2`, `-3`, ... instead of overwriting."""
+        """Write `<stem>.jsonl`; a file that exists already is never overwritten, the next free `-2`, `-3`, ... is used.
+
+        The file is created exclusively, so two exports in the same second cannot pick the same name.
+        """
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"{stem}.jsonl"
-        for number in itertools.count(2):
-            if not path.exists():
-                break
-            path = directory / f"{stem}-{number}.jsonl"
-        path.write_text(content, encoding="utf-8")
-        return path
+        for number in itertools.count(1):
+            path = directory / (f"{stem}.jsonl" if number == 1 else f"{stem}-{number}.jsonl")
+            try:
+                with path.open("x", encoding="utf-8") as file:
+                    file.write(content)
+            except FileExistsError:
+                continue
+            return path
+        raise AssertionError("unreachable")  # itertools.count never ends
 
     @callback
     def async_set_settings(self, settings: Settings) -> None:
@@ -130,6 +139,12 @@ class GuestbookRuntime:
         """Call `listener` with every Change the engine reports (the notifier uses this)."""
         self._change_listeners.append(listener)
         return lambda: self._change_listeners.remove(listener)
+
+    @callback
+    def async_add_purge_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
+        """Call `listener` after a purge removed entries (repairs about purged visits go away)."""
+        self._purge_listeners.append(listener)
+        return lambda: self._purge_listeners.remove(listener)
 
     @callback
     def async_set_guests(self, guests: list[Guest]) -> None:
@@ -186,6 +201,7 @@ class GuestbookRuntime:
     ) -> Entry:
         """Store a correction next to the decision; resident and delivery close an open visit."""
         entry = self._entry(entry_id)
+        guest_name = (clean_guest_name(guest_name) or None) if guest_name is not None else None
         if entry.kind is EntryKind.PENDING_RING:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,

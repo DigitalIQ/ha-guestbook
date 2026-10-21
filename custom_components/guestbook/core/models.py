@@ -16,9 +16,25 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
+MAX_GUEST_NAME = 64  # characters; guest names end up in entity states, titles and pushes
+
+
+def _aware(value: Any) -> bool:
+    """True for an ISO string with a UTC offset."""
+    try:
+        return isinstance(value, str) and datetime.fromisoformat(value).tzinfo is not None
+    except ValueError:
+        return False
+
+
 def normalize_name(name: str) -> str:
     """The form in which guest names are compared: trimmed and case-insensitive."""
     return name.strip().casefold()
+
+
+def clean_guest_name(name: str) -> str:
+    """A guest name as it is stored: trimmed and cut to `MAX_GUEST_NAME` characters."""
+    return name.strip()[:MAX_GUEST_NAME].rstrip()
 
 
 class SignalKind(StrEnum):
@@ -224,6 +240,23 @@ class Entry:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Entry:
+        """Read a stored entry; raises KeyError, TypeError or ValueError for one the engine could not work with."""
+        entry = cls._from_dict(data)
+        entry._check()
+        return entry
+
+    def _check(self) -> None:
+        """Invariants the rule core relies on: guests with id and name, a timezone-aware deadline on a pending ring."""
+        for guest in self.guests:
+            if not (
+                isinstance(guest, dict) and isinstance(guest.get("id"), str) and isinstance(guest.get("name"), str)
+            ):
+                raise ValueError(f"entry {self.id}: a guest needs a text id and a text name")
+        if self.kind is EntryKind.PENDING_RING and self.open and not _aware(self.rule_state.get("deadline")):
+            raise ValueError(f"entry {self.id}: a pending ring needs a timezone-aware deadline")
+
+    @classmethod
+    def _from_dict(cls, data: dict[str, Any]) -> Entry:
         return cls(
             id=data["id"],
             kind=EntryKind(data["kind"]),

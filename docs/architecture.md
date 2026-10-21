@@ -63,6 +63,7 @@ class CorrectionKind(StrEnum):
     RESIDENT, DELIVERY, VISIT, UNKNOWN     # values "resident", "delivery", "visit", "unknown" (JSON, action field, button ids)
 
 def normalize_name(name: str) -> str       # strip + casefold; the only way guest names are compared
+def clean_guest_name(name: str) -> str     # strip + cut to MAX_GUEST_NAME (64); every input that becomes a guest name goes through it
 
 @dataclass
 class Correction:
@@ -161,7 +162,7 @@ Runtime methods (`GuestbookRuntime`, all raise `ServiceValidationError` with a t
 Actions (`services.py`, schemas with `probatio`, descriptions in `services.yaml`, texts in `strings.json` and `translations/{en,de}.json`):
 
 - `guestbook.correct_entry`: `entry_id`, `kind` (a `CorrectionKind` value), optional `guest_name`, `start`, `end`, `note`. `SupportsResponse.OPTIONAL`: with a response it returns `entry_id`, `kind`, `decision`, `guests`, `start`, `end` (effective, ISO). Start and end are only display overrides; an end on an open visit does not close it.
-- `guestbook.add_visit`: optional `guests` (list of names), `start`, `end`, optional `note`.
+- `guestbook.add_visit`: optional `guests` (a name or a list of names; each element is a string by `cv.string`, not blank, trimmed and cut to `MAX_GUEST_NAME`), `start`, `end`, optional `note`.
 - `guestbook.add_note`: `entry_id`, `note`.
 - All use the first loaded entry (single config entry) and raise `not_loaded` when there is none. Naive datetimes count as local time.
 
@@ -214,7 +215,7 @@ The notifier sends the question (`PushKind.CORRECTION`) on the same `OPENED`/`CL
 
 - `core/archive.py` (pure): `expired_entries(entries, now, retention)` returns the closed entries whose `end` is older than `now - retention` (an entry ending exactly at the cutoff stays; entries with `end` None, i.e. open visits and pending rings, are never expired). `entries_in_range(entries, start, end)` sorts by start and keeps `start <= entry.start < end` (a missing bound is open). `to_jsonl(entries)` is one `Entry.to_dict()` JSON object per line, without `rule_state` and `question_token` (they stay in the storage). `entries_in_range` skips pending rings.
 - Retention is the option `retention` (days, default 365, `settings.py` maps it to `Settings.retention`). `GuestbookRuntime.async_purge(now)` removes the expired entries from the store; it runs in `async_start` and every day (`async_track_time_interval`, `PURGE_INTERVAL`). A changed retention applies at the next run; saving the option does not purge at once.
-- `guestbook.export` (optional `start`, `end`; `SupportsResponse.OPTIONAL`) calls `GuestbookRuntime.async_export(start, end)`. The file is `<config>/guestbook/guestbook-<UTC %Y%m%dT%H%M%SZ>.jsonl`, written in the executor (`hass.config.path`); a second export in the same second gets `-2`, `-3` instead of overwriting. The response is `{"path": ..., "count": ...}`. Naive datetimes count as local time. The export contains the stored entries in range, including open visits but not pending rings.
+- `guestbook.export` (optional `start`, `end`; `SupportsResponse.OPTIONAL`) calls `GuestbookRuntime.async_export(start, end)`. The file is `<config>/guestbook/guestbook-<UTC %Y%m%dT%H%M%SZ>.jsonl`, written in the executor (`hass.config.path`); the file is created exclusively (mode `x`); on `FileExistsError` (another export in the same second, even a concurrent one) the next suffix `-2`, `-3` is tried, so a file is never overwritten. The response is `{"path": ..., "count": ...}`. Naive datetimes count as local time. The export contains the stored entries in range, including open visits but not pending rings.
 
 ## Settings and repairs (ticket 14)
 
@@ -231,13 +232,13 @@ Missing sources (`repairs.py`): `SourceMonitor` raises one non-fixable warning i
 ## Guest suggestion (ticket 12)
 
 - `GuestSuggestions` (`repairs.py`) listens to the bus event `guestbook_visit_corrected`. For a correction of kind `visit` with a non-empty `guest_name` that matches no guest profile (trimmed, case-insensitive) it creates a fixable, persistent warning issue: id `guest_suggestion_<name casefolded>`, translation key `guest_suggestion`, placeholder `name`, data `{"entry_id": <config entry id>, "name": ..., "visit_id": <visit entry id>}`. Pushes and actions both end in that event. The same name again updates the one issue (latest visit). Other kinds (`delivery`, `resident`, `unknown`) never raise it, even with a name.
-- The issue is deleted when a guest with that name exists: on every guest change (entry update listener), at startup, and by the fix flow. Removing the config entry deletes all issues of Guestbook (`async_remove_entry`).
+- The issue is deleted when a guest with that name exists: on every guest change (entry update listener), at startup, and by the fix flow. It is also deleted when its visit is gone: `GuestSuggestions.async_cleanup` checks `visit_id` against the stored entries at startup and after every retention purge (`GuestbookRuntime.async_add_purge_listener`). Removing the config entry deletes all issues of Guestbook (`async_remove_entry`).
 - Fix flow (`async_create_fix_flow` in `repairs.py` is the repairs platform): `GuestSuggestionFlow`. `async_step_init` hands over to the step `guest` (Home Assistant passes the issue id as `user_input` of the first call). The form `guest` shows the name in the description (`{name}`, not editable) and one optional `device_tracker` selector, `trackers`, with the preselection as suggested value (so the user can clear it). Submitting calls `hass.config_entries.async_add_subentry` with a `guest` subentry (`name`, `trackers`), which the entry update listener picks up like any new guest. If the entry is not loaded the flow aborts with `not_loaded`; if the guest exists meanwhile, nothing is added and the issue is still removed.
 - Preselection (`async_suggested_trackers`): `device_tracker` entities known to the state machine, minus the trackers linked to any guest, minus resident trackers (`device_tracker` entries of `resident_signals` and the `device_trackers` attribute of the selected `person` residents), that were `home` at any time between the effective start and end of the visit (end None: now). The history comes from the recorder (`get_significant_states` with the start state, in the recorder executor) when the `recorder` component is loaded (`after_dependencies` in the manifest). Without the recorder, without the visit entry (purged) or when the recorder query fails, the trackers that are `home` now are used. Known limit: a device that is always home (a printer, a TV) is preselected too; the user removes it in the form.
 
 ## Storage
 
-One `Store` key `guestbook.entries`, version 1: `{"entries": [Entry.to_dict(), ...]}`. Delayed save (a few seconds); flush on unload. A stored item that cannot be read is skipped with a warning at load; it is gone with the next save.
+One `Store` key `guestbook.entries`, version 1: `{"entries": [Entry.to_dict(), ...]}`. Delayed save (a few seconds); flush on unload. A stored item that cannot be read is skipped with a warning at load; it is gone with the next save. `Entry.from_dict` also checks what the engine relies on: every guest is a dict with a text `id` and `name`, and an open pending ring has a timezone-aware ISO `rule_state["deadline"]`; otherwise it raises `ValueError` and the item is skipped like any broken one.
 
 ## Events
 

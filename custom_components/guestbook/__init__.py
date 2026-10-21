@@ -45,7 +45,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) ->
     adapter = SignalAdapter(hass, entry.data, guests, runtime.async_handle_signal)
     entry.runtime_data = runtime
     monitor = SourceMonitor(hass, entry)
-    suggestions = GuestSuggestions(hass, entry)
+    suggestions = GuestSuggestions(hass, entry, lambda visit_id: runtime.async_get_entry(visit_id) is not None)
     known_guests = guests
     known_settings = runtime.settings
     known_sources = _sources(entry)
@@ -66,6 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) ->
             suggestions.async_cleanup()
 
     entry.async_on_unload(Notifier(hass, entry, runtime).async_start())
+    entry.async_on_unload(runtime.async_add_purge_listener(suggestions.async_cleanup))
 
     runtime.async_start()
     entry.async_on_unload(adapter.async_start())

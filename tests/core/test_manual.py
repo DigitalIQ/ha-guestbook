@@ -1,4 +1,13 @@
-from custom_components.guestbook.core import Certainty, EntryKind, Guest, Settings, manual_visit, normalize_name
+from custom_components.guestbook.core import (
+    MAX_GUEST_NAME,
+    Certainty,
+    EntryKind,
+    Guest,
+    Settings,
+    clean_guest_name,
+    manual_visit,
+    normalize_name,
+)
 
 from .helpers import at
 
@@ -34,3 +43,18 @@ def test_each_manual_visit_gets_its_own_id():
     second = manual_visit([], [], at("10:00"), at("11:00"), None, Settings())
 
     assert first.id != second.id
+
+
+def test_guest_names_are_trimmed_and_cut_to_the_maximum_length():
+    assert MAX_GUEST_NAME == 64
+    assert clean_guest_name("  Alex  ") == "Alex"
+    assert clean_guest_name("x" * 100) == "x" * 64
+    assert clean_guest_name("  " + "y" * 70) == "y" * 64
+    assert clean_guest_name(" " * 3) == ""
+
+
+def test_manual_visit_cuts_long_free_names_and_counts_equal_cut_names_once():
+    long = "N" * 80
+    entry = manual_visit([long, "N" * 64, "N" * 90], [], at("10:00"), at("11:00"), None, Settings())
+
+    assert entry.guests == [{"id": "", "name": "N" * 64}]

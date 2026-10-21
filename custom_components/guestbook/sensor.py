@@ -19,6 +19,9 @@ async def async_setup_entry(
     async_add_entities([CurrentVisitSensor(entry)])
 
 
+MAX_STATE_LENGTH = 250  # Home Assistant refuses states longer than 255 characters
+
+
 class CurrentVisitSensor(GuestbookEntity, SensorEntity):
     _attr_translation_key = "current_visit"
 
@@ -33,7 +36,8 @@ class CurrentVisitSensor(GuestbookEntity, SensorEntity):
     def native_value(self) -> str | None:
         if (visit := self._visit) is None:
             return None
-        return ", ".join(effective_guests(visit)) or unknown_guest(self.hass.config.language)
+        names = ", ".join(effective_guests(visit)) or unknown_guest(self.hass.config.language)
+        return names if len(names) <= MAX_STATE_LENGTH else names[: MAX_STATE_LENGTH - 1].rstrip(" ,") + "\u2026"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
