@@ -30,6 +30,9 @@
     "calendar": {
       "visits": {
         "name": "Besuche"
+      },
+      "rings": {
+        "name": "Klingeln"
       }
     }
   },

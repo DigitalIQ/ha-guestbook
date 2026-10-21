@@ -69,17 +69,25 @@ async def ring(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
 
-async def get_visits(hass: HomeAssistant) -> list[dict]:
+async def get_events(hass: HomeAssistant, entity_id: str) -> list[dict]:
     now = dt_util.utcnow()
     response = await hass.services.async_call(
         "calendar",
         "get_events",
         {
-            "entity_id": "calendar.guestbook_visits",
+            "entity_id": entity_id,
             "start_date_time": (now - timedelta(days=1)).isoformat(),
             "end_date_time": (now + timedelta(days=1)).isoformat(),
         },
         blocking=True,
         return_response=True,
     )
-    return response["calendar.guestbook_visits"]["events"]
+    return response[entity_id]["events"]
+
+
+async def get_visits(hass: HomeAssistant) -> list[dict]:
+    return await get_events(hass, "calendar.guestbook_visits")
+
+
+async def get_rings(hass: HomeAssistant) -> list[dict]:
+    return await get_events(hass, "calendar.guestbook_rings")
