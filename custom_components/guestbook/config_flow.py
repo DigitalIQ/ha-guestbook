@@ -19,18 +19,24 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_DOORBELLS,
     CONF_DOORS,
+    CONF_ENTRY_GRACE,
     CONF_LOCKS,
+    CONF_MAX_DURATION,
     CONF_NAME,
     CONF_NOTIFY_ENTITIES,
+    CONF_PHONE_GRACE,
     CONF_PHONES,
     CONF_PRESENCE,
     CONF_PUSH_ARRIVAL,
     CONF_PUSH_CORRECTION,
     CONF_PUSH_END,
     CONF_PUSH_UNANSWERED_RING,
+    CONF_QUIET_PERIOD,
     CONF_RESIDENT_SIGNALS,
+    CONF_RESIDENT_WINDOW,
     CONF_RESIDENTS,
     CONF_RETENTION,
+    CONF_RING_WINDOW,
     CONF_TRACKERS,
     DOMAIN,
     PUSH_DEFAULTS,
@@ -62,11 +68,46 @@ GUEST_SCHEMA = probatio.Schema(
     }
 )
 
+SOURCES_STEP_SCHEMA = probatio.Schema(
+    {
+        probatio.Optional(CONF_DOORBELLS, default=[]): _entities("event", "binary_sensor"),
+        probatio.Optional(CONF_DOORS, default=[]): _entities("binary_sensor"),
+        probatio.Optional(CONF_PRESENCE, default=[]): _entities("binary_sensor"),
+        probatio.Optional(CONF_LOCKS, default=[]): _entities("lock"),
+    }
+)
+
+RESIDENTS_STEP_SCHEMA = probatio.Schema(
+    {
+        probatio.Optional(CONF_RESIDENTS, default=[]): _entities("person"),
+        probatio.Optional(CONF_RESIDENT_SIGNALS, default=[]): _entities(),
+    }
+)
+
+
+def _number(unit: str, minimum: float, maximum: float, step: float) -> selector.NumberSelector:
+    return selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=minimum, max=maximum, step=step, unit_of_measurement=unit, mode=selector.NumberSelectorMode.BOX
+        )
+    )
+
+
+_RULE_DEFAULTS = rule_defaults()
+RULES_SCHEMA = probatio.Schema(
+    {
+        probatio.Optional(CONF_RING_WINDOW, default=_RULE_DEFAULTS[CONF_RING_WINDOW]): _number("min", 1, 60, 1),
+        probatio.Optional(CONF_RESIDENT_WINDOW, default=_RULE_DEFAULTS[CONF_RESIDENT_WINDOW]): _number("min", 1, 60, 1),
+        probatio.Optional(CONF_QUIET_PERIOD, default=_RULE_DEFAULTS[CONF_QUIET_PERIOD]): _number("min", 1, 240, 1),
+        probatio.Optional(CONF_ENTRY_GRACE, default=_RULE_DEFAULTS[CONF_ENTRY_GRACE]): _number("min", 0, 60, 1),
+        probatio.Optional(CONF_PHONE_GRACE, default=_RULE_DEFAULTS[CONF_PHONE_GRACE]): _number("min", 1, 240, 1),
+        probatio.Optional(CONF_MAX_DURATION, default=_RULE_DEFAULTS[CONF_MAX_DURATION]): _number("h", 0.5, 72, 0.5),
+        probatio.Optional(CONF_RETENTION, default=_RULE_DEFAULTS[CONF_RETENTION]): _number("d", 1, 3650, 1),
+    }
+)
+
 PUSH_SCHEMA = probatio.Schema(
     {
-        probatio.Optional(CONF_RETENTION, default=rule_defaults()[CONF_RETENTION]): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=1, max=3650, step=1, unit_of_measurement="d", mode="box")
-        ),
         probatio.Optional(CONF_PHONES, default=[]): selector.DeviceSelector(
             selector.DeviceSelectorConfig(integration="mobile_app", multiple=True)
         ),
@@ -103,11 +144,41 @@ class GuestSubentryFlow(ConfigSubentryFlow):
 
 
 class GuestbookOptionsFlow(OptionsFlow):
+    """A menu of four steps. Each step saves on its own and applies without a reload."""
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self.async_show_menu(step_id="init", menu_options=["sources", "residents", "rules", "pushes"])
+
+    async def async_step_sources(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._data_step("sources", SOURCES_STEP_SCHEMA, user_input)
+
+    async def async_step_residents(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._data_step("residents", RESIDENTS_STEP_SCHEMA, user_input)
+
+    async def async_step_rules(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._options_step("rules", RULES_SCHEMA, user_input)
+
+    async def async_step_pushes(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self._options_step("pushes", PUSH_SCHEMA, user_input)
+
+    def _data_step(self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        """Sources live in the entry data, as the config flow saved them; the options stay as they are."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data={**self.config_entry.data, **user_input}
+            )
+            return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(
-            step_id="init", data_schema=self.add_suggested_values_to_schema(PUSH_SCHEMA, self.config_entry.options)
+            step_id=step_id, data_schema=self.add_suggested_values_to_schema(schema, self.config_entry.data)
+        )
+
+    def _options_step(
+        self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data={**self.config_entry.options, **user_input})
+        return self.async_show_form(
+            step_id=step_id, data_schema=self.add_suggested_values_to_schema(schema, self.config_entry.options)
         )
 
 

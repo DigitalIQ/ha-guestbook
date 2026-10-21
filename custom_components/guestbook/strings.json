@@ -29,6 +29,66 @@
   "options": {
     "step": {
       "init": {
+        "title": "Guestbook settings",
+        "description": "Choose what to change. Every part saves on its own and applies at once. Stored entries and open visits are kept.",
+        "menu_options": {
+          "sources": "Sources",
+          "residents": "Residents",
+          "rules": "Rules",
+          "pushes": "Pushes"
+        }
+      },
+      "sources": {
+        "title": "Sources",
+        "description": "Entities Guestbook watches. An entity that does not exist raises a repair issue.",
+        "data": {
+          "doorbells": "Doorbells",
+          "doors": "Door contacts",
+          "presence": "Presence sensors",
+          "locks": "Locks"
+        },
+        "data_description": {
+          "doorbells": "Doorbell event entities or binary sensors. A ring starts the ring window.",
+          "doors": "Door contacts. An opening after a ring turns it into a visit.",
+          "presence": "Presence or motion sensors inside the home. Presence after a ring also turns it into a visit.",
+          "locks": "Locks whose state changes appear in the visit log."
+        }
+      },
+      "residents": {
+        "title": "Residents",
+        "description": "People who live here and the signals that show one of them arriving.",
+        "data": {
+          "residents": "Residents",
+          "resident_signals": "Resident signals"
+        },
+        "data_description": {
+          "residents": "Person entities of the people who live here. Residents never become visits.",
+          "resident_signals": "Entities that prove a resident is arriving, for example a fingerprint reader or a resident phone."
+        }
+      },
+      "rules": {
+        "title": "Rules",
+        "description": "The numbers behind the decisions. The defaults suit most homes. A change applies to new decisions and to the end of open visits.",
+        "data": {
+          "ring_window": "Ring window",
+          "resident_window": "Resident window",
+          "quiet_period": "Quiet period",
+          "entry_grace": "Entry grace",
+          "phone_grace": "Phone grace",
+          "max_duration": "Maximum duration",
+          "retention": "Keep entries for"
+        },
+        "data_description": {
+          "ring_window": "Minutes after a ring in which a door opening or presence makes it a visit.",
+          "resident_window": "Minutes around a ring in which a resident signal makes it a resident arrival.",
+          "quiet_period": "Minutes without a door opening after which an uncertain visit ends.",
+          "entry_grace": "Minutes after the guest came in during which door openings do not count as leaving.",
+          "phone_grace": "Minutes a guest's phone may be away before the visit ends.",
+          "max_duration": "Hours after which an uncertain visit ends if nothing ended it earlier.",
+          "retention": "Days. Closed entries older than this are deleted at startup and once a day. Open visits are never deleted."
+        }
+      },
+      "pushes": {
         "title": "Pushes",
         "description": "Choose who gets pushes and which pushes are sent. Companion app phones get buttons. Notify entities get plain text with the entry id.",
         "data": {
@@ -37,8 +97,7 @@
           "push_arrival": "Arrival",
           "push_end": "End of visit",
           "push_correction": "Correction question",
-          "push_unanswered_ring": "Unanswered ring",
-          "retention": "Keep entries for (days)"
+          "push_unanswered_ring": "Unanswered ring"
         },
         "data_description": {
           "phones": "Phones with the Home Assistant Companion app. Only these get the buttons of the correction question.",
@@ -46,8 +105,7 @@
           "push_arrival": "Push when a visit starts and none of the residents is home.",
           "push_end": "Push when a visit ends and none of the residents is home.",
           "push_correction": "Ask for every uncertain visit what it was, also when a resident is home.",
-          "push_unanswered_ring": "Push when someone rang and nobody opened.",
-          "retention": "Closed entries older than this are deleted at startup and once a day. Open visits are never deleted."
+          "push_unanswered_ring": "Push when someone rang and nobody opened."
         }
       }
     }
@@ -223,6 +281,12 @@
         "visit": "Visit",
         "unknown": "Unknown"
       }
+    }
+  },
+  "issues": {
+    "missing_source": {
+      "title": "Guestbook source is missing",
+      "description": "Guestbook is set to watch {entity_id}, but that entity does not exist. Visits cannot use it. Bring the entity back, or remove it from the sources in the Guestbook settings."
     }
   }
 }

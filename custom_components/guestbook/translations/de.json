@@ -29,6 +29,66 @@
   "options": {
     "step": {
       "init": {
+        "title": "Guestbook-Einstellungen",
+        "description": "Wähle, was du ändern willst. Jeder Teil speichert für sich und gilt sofort. Gespeicherte Einträge und offene Besuche bleiben erhalten.",
+        "menu_options": {
+          "sources": "Quellen",
+          "residents": "Bewohner",
+          "rules": "Regeln",
+          "pushes": "Pushes"
+        }
+      },
+      "sources": {
+        "title": "Quellen",
+        "description": "Entitäten, die Guestbook beobachtet. Eine Entität, die es nicht gibt, löst ein Reparaturproblem aus.",
+        "data": {
+          "doorbells": "Türklingeln",
+          "doors": "Türkontakte",
+          "presence": "Anwesenheitssensoren",
+          "locks": "Schlösser"
+        },
+        "data_description": {
+          "doorbells": "Event-Entitäten oder Binärsensoren der Türklingel. Ein Klingeln startet das Klingelfenster.",
+          "doors": "Türkontakte. Ein Öffnen nach dem Klingeln macht daraus einen Besuch.",
+          "presence": "Anwesenheits- oder Bewegungssensoren im Haus. Anwesenheit nach dem Klingeln macht ebenfalls einen Besuch daraus.",
+          "locks": "Schlösser, deren Zustandswechsel im Besuchslog erscheinen."
+        }
+      },
+      "residents": {
+        "title": "Bewohner",
+        "description": "Menschen, die hier wohnen, und die Signale, die zeigen, dass einer von ihnen ankommt.",
+        "data": {
+          "residents": "Bewohner",
+          "resident_signals": "Bewohnersignale"
+        },
+        "data_description": {
+          "residents": "Person-Entitäten der Menschen, die hier wohnen. Bewohner werden nie zu Besuchen.",
+          "resident_signals": "Entitäten, die zeigen, dass ein Bewohner ankommt, zum Beispiel ein Fingerabdruckleser oder das Handy eines Bewohners."
+        }
+      },
+      "rules": {
+        "title": "Regeln",
+        "description": "Die Zahlen hinter den Entscheidungen. Die Standardwerte passen für die meisten Haushalte. Eine Änderung gilt für neue Entscheidungen und für das Ende offener Besuche.",
+        "data": {
+          "ring_window": "Klingelfenster",
+          "resident_window": "Bewohnerfenster",
+          "quiet_period": "Ruhezeit",
+          "entry_grace": "Eintrittsfrist",
+          "phone_grace": "Handy-Frist",
+          "max_duration": "Höchstdauer",
+          "retention": "Einträge aufbewahren"
+        },
+        "data_description": {
+          "ring_window": "Minuten nach dem Klingeln, in denen ein Öffnen der Tür oder Anwesenheit einen Besuch daraus macht.",
+          "resident_window": "Minuten um ein Klingeln, in denen ein Bewohnersignal es zur Ankunft eines Bewohners macht.",
+          "quiet_period": "Minuten ohne Türöffnung, nach denen ein unsicherer Besuch endet.",
+          "entry_grace": "Minuten nach dem Eintreten des Gasts, in denen Türöffnungen nicht als Gehen zählen.",
+          "phone_grace": "Minuten, die das Handy eines Gasts weg sein darf, bevor der Besuch endet.",
+          "max_duration": "Stunden, nach denen ein unsicherer Besuch endet, wenn ihn nichts früher beendet hat.",
+          "retention": "Tage. Abgeschlossene Einträge, die älter sind, werden beim Start und einmal am Tag gelöscht. Offene Besuche bleiben immer."
+        }
+      },
+      "pushes": {
         "title": "Pushes",
         "description": "Wähle, wer Pushes bekommt und welche Pushes gesendet werden. Companion-App-Handys bekommen Schaltflächen. Notify-Entitäten bekommen reinen Text mit der Eintrags-ID.",
         "data": {
@@ -37,8 +97,7 @@
           "push_arrival": "Ankunft",
           "push_end": "Ende des Besuchs",
           "push_correction": "Korrekturfrage",
-          "push_unanswered_ring": "Unbeantwortetes Klingeln",
-          "retention": "Einträge aufbewahren (Tage)"
+          "push_unanswered_ring": "Unbeantwortetes Klingeln"
         },
         "data_description": {
           "phones": "Handys mit der Home-Assistant-Companion-App. Nur sie bekommen die Schaltflächen der Korrekturfrage.",
@@ -46,8 +105,7 @@
           "push_arrival": "Push, wenn ein Besuch beginnt und kein Bewohner zu Hause ist.",
           "push_end": "Push, wenn ein Besuch endet und kein Bewohner zu Hause ist.",
           "push_correction": "Bei jedem unsicheren Besuch fragen, was es war, auch wenn ein Bewohner zu Hause ist.",
-          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat.",
-          "retention": "Abgeschlossene Einträge, die älter sind, werden beim Start und einmal am Tag gelöscht. Offene Besuche bleiben immer."
+          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat."
         }
       }
     }
@@ -223,6 +281,12 @@
         "visit": "Besuch",
         "unknown": "Unklar"
       }
+    }
+  },
+  "issues": {
+    "missing_source": {
+      "title": "Guestbook-Quelle fehlt",
+      "description": "Guestbook soll {entity_id} beobachten, aber diese Entität gibt es nicht. Besuche können sie nicht nutzen. Stelle die Entität wieder her oder entferne sie in den Guestbook-Einstellungen aus den Quellen."
     }
   }
 }

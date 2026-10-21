@@ -169,9 +169,16 @@ async def add_phone(hass: HomeAssistant, device_name: str = "Pixel of Alex", os_
     return device.id
 
 
-async def set_options(hass: HomeAssistant, entry: MockConfigEntry, **options) -> None:
-    """Save the options through the options flow."""
+async def open_options_step(hass: HomeAssistant, entry: MockConfigEntry, step: str) -> dict:
+    """Open the options menu and pick a step. Returns the flow result of that step."""
     result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
+    return await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": step})
+
+
+async def set_options(hass: HomeAssistant, entry: MockConfigEntry, *, step: str = "pushes", **options) -> None:
+    """Save the fields of one options step (the pushes by default) through the options flow."""
+    result = await open_options_step(hass, entry, step)
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY

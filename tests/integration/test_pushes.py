@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import async_capture_events, a
 from custom_components.guestbook.const import CONF_RESIDENTS
 from custom_components.guestbook.core import EffectiveKind
 
-from .conftest import ALEX_PHONE, add_guest, add_phone, advance, ring, set_options, set_tracker
+from .conftest import ALEX_PHONE, add_guest, add_phone, advance, open_options_step, ring, set_options, set_tracker
 
 PIXEL_SERVICE = "mobile_app_pixel_of_alex"
 MESSENGER = "notify.family_messenger"
@@ -33,12 +33,11 @@ async def select_targets(hass: HomeAssistant, entry, **options) -> list:
 
 
 async def test_options_form_offers_the_push_targets_and_switches(hass: HomeAssistant, setup_guestbook):
-    result = await hass.config_entries.options.async_init(setup_guestbook.entry_id)
+    result = await open_options_step(hass, setup_guestbook, "pushes")
 
     assert result["type"] is FlowResultType.FORM
     schema = result["data_schema"].schema
     assert {str(key) for key in schema} == {
-        "retention",
         "phones",
         "notify_entities",
         "push_arrival",
@@ -58,7 +57,6 @@ async def test_push_switches_default_to_arrival_end_correction_on_and_unanswered
     await set_options(hass, setup_guestbook)
 
     assert setup_guestbook.options == {
-        "retention": 365,
         "phones": [],
         "notify_entities": [],
         "push_arrival": True,
