@@ -6,6 +6,19 @@ Typical do-it-yourself visit logs write into `input_text` helpers, which stop at
 
 All data stays on your Home Assistant. There is no cloud and no telemetry.
 
+## Screenshots
+
+A dashboard with the Guestbook entities, [Calendar Card Pro](https://github.com/alexpfau/calendar-card-pro) and [Chronicle Card](https://github.com/KadenThomp36/chronicle-card). All names and entities are demo data.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+  <img src="docs/images/dashboard-light.png" alt="Guestbook dashboard: tiles show an active visit by Alex and Sam, a week calendar lists visits, deliveries and unanswered rings, and a timeline shows the history with the visit logs">
+</picture>
+
+Each visit is a calendar event. Its description holds the full log:
+
+<img src="docs/images/visit-details.png" width="480" alt="Calendar event Visit: Sam with the log of doorbell, lock, door and hallway presence, the start and end reason, the correction by push and a note">
+
 ## What it does
 
 - A guest's phone joins your Wi-Fi: a **certain** visit starts. It ends when the last phone has left.
