@@ -141,6 +141,13 @@ One `Store` key `guestbook.entries`, version 1: `{"entries": [Entry.to_dict(), .
 
 `guestbook_visit_started`, `guestbook_visit_event`, `guestbook_visit_ended`, `guestbook_visit_corrected` (names in `const.py`).
 
+The runtime fires them from the Changes of entries of kind `VISIT` (ticket 08). Payload values are JSON-safe; guests are names, times are ISO strings (UTC).
+
+- `guestbook_visit_started`: `OPENED` or `CLASSIFIED` change of an open visit. `entry_id`, `guests`, `certainty`, `start`.
+- `guestbook_visit_event`: `SIGNAL_ADDED` change of a visit. `entry_id`, `guests`, `certainty`, `signal` (SignalKind value), `source` (entity id), `time`. The signal that turns a ring into a visit is part of `started` and not repeated. A guest phone joining an open visit is a `guest_home` event.
+- `guestbook_visit_ended`: `CLOSED` change of a visit. `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (whole seconds).
+- Resident arrivals and unanswered rings fire nothing, also not when an already started visit is reclassified as a resident arrival (no `ended` follows then).
+
 ## Testing
 
 - Core tests build signals with a helper `at("14:02")` on a fixed date.

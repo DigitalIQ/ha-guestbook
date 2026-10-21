@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
+from .const import EVENT_VISIT_ENDED, EVENT_VISIT_EVENT, EVENT_VISIT_STARTED
 from .core import Change, ChangeKind, Engine, Entry, EntryKind, Guest, Signal
 from .store import GuestbookStore
 
@@ -61,10 +63,34 @@ class GuestbookRuntime:
                 self._store.async_remove(change.entry.id)
             else:
                 self._store.async_put(change.entry)
+            self._fire_event(change)
         self._schedule()
         if changes:
             for listener in list(self._listeners):
                 listener()
+
+    @callback
+    def _fire_event(self, change: Change) -> None:
+        entry = change.entry
+        if entry.kind is not EntryKind.VISIT:
+            return
+        data: dict[str, Any] = {"entry_id": entry.id, "guests": [guest["name"] for guest in entry.guests]}
+        data["certainty"] = entry.certainty.value if entry.certainty else None
+        if change.kind in (ChangeKind.OPENED, ChangeKind.CLASSIFIED) and entry.open:
+            self._hass.bus.async_fire(EVENT_VISIT_STARTED, {**data, "start": entry.start.isoformat()})
+        elif change.kind is ChangeKind.SIGNAL_ADDED and change.signal is not None:
+            signal = {"signal": change.signal.kind.value, "source": change.signal.source}
+            self._hass.bus.async_fire(EVENT_VISIT_EVENT, {**data, **signal, "time": change.signal.time.isoformat()})
+        elif change.kind is ChangeKind.CLOSED and entry.end is not None:
+            self._hass.bus.async_fire(
+                EVENT_VISIT_ENDED,
+                {
+                    **data,
+                    "start": entry.start.isoformat(),
+                    "end": entry.end.isoformat(),
+                    "duration": int((entry.end - entry.start).total_seconds()),
+                },
+            )
 
     @callback
     def _schedule(self) -> None:
