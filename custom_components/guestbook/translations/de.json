@@ -290,12 +290,11 @@
     },
     "guest_suggestion": {
       "title": "{name} als Gast anlegen?",
-      "description": "Eine Korrektur nannte {name} als Besucher, aber es gibt keinen Gast mit diesem Namen. Lege den Gast an und verknüpfe das Handy, dann wird der nächste Besuch ohne Klingeln erkannt.",
       "fix_flow": {
         "step": {
           "guest": {
             "title": "{name} als Gast anlegen",
-            "description": "Legt den Gast {name} an. Handys, die während des Besuchs zu Hause waren und zu keinem Gast gehören, sind vorgewählt. Entferne die, die nicht ihm gehören.",
+            "description": "Eine Korrektur nannte {name} als Besucher, aber es gibt keinen Gast mit diesem Namen. Das legt den Gast an, dann wird der nächste Besuch ohne Klingeln erkannt. Handys, die während des Besuchs zu Hause waren und zu keinem Gast gehören, sind vorgewählt. Entferne die, die nicht ihm gehören.",
             "data": {
               "trackers": "Handys"
             },

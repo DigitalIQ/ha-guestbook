@@ -290,12 +290,11 @@
     },
     "guest_suggestion": {
       "title": "Add {name} as a guest?",
-      "description": "A correction named {name} as a visitor, but there is no guest with that name. Create the guest and link the phone, so the next visit is recognised without a ring.",
       "fix_flow": {
         "step": {
           "guest": {
             "title": "Add {name} as a guest",
-            "description": "Creates the guest {name}. Phones that were home during the visit and belong to no guest are preselected. Remove the ones that are not theirs.",
+            "description": "A correction named {name} as a visitor, but there is no guest with that name. This creates the guest, so the next visit is recognised without a ring. Phones that were home during the visit and belong to no guest are preselected. Remove the ones that are not theirs.",
             "data": {
               "trackers": "Phones"
             },

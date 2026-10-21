@@ -130,15 +130,9 @@ class Notifier:
     def _phone(self, device_id: str) -> tuple[str, bool] | None:
         """Return the legacy notify service of a Companion app device and whether it runs Android."""
         device = dr.async_get(self._hass).async_get(device_id)
-        mobile_app = next(
-            (
-                config_entry
-                for entry_id in (device.config_entries if device else ())
-                if (config_entry := self._hass.config_entries.async_get_entry(entry_id))
-                and config_entry.domain == MOBILE_APP
-            ),
-            None,
-        )
+        mobile_app = self._hass.config_entries.async_get_entry(device.config_entry_id) if device else None
+        if mobile_app is not None and mobile_app.domain != MOBILE_APP:
+            mobile_app = None
         if device is None or mobile_app is None:
             _LOGGER.debug("Skipping device %s: it is not a Companion app phone", device_id)
             return None
