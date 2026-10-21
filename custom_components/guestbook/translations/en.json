@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Guestbook",
+        "description": "Select the entities Guestbook should watch. Every field is optional. You can change the selection later.",
+        "data": {
+          "doorbells": "Doorbells",
+          "doors": "Door contacts",
+          "presence": "Presence sensors",
+          "residents": "Residents",
+          "resident_signals": "Resident signals"
+        },
+        "data_description": {
+          "doorbells": "Doorbell event entities or binary sensors. A ring starts the ring window.",
+          "doors": "Door contacts. An opening after a ring turns it into a visit.",
+          "presence": "Presence or motion sensors inside the home. Presence after a ring also turns it into a visit.",
+          "residents": "Person entities of the people who live here. Residents never become visits.",
+          "resident_signals": "Entities that prove a resident is arriving, for example a fingerprint reader or a resident phone."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Guestbook is already set up. Only one instance is allowed."
+    }
+  },
+  "entity": {
+    "calendar": {
+      "visits": {
+        "name": "Visits"
+      }
+    }
+  }
+}
