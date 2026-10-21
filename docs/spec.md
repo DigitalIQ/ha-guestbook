@@ -149,7 +149,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - Ring window [5 min]: a door opening or presence on within this time after a ring turns the ring into a visit.
 - Resident window [3 min]: a resident signal from this time before a ring until the end of the ring window makes the ring a resident arrival.
 - A door opening or presence with no ring before it starts nothing (residents leaving and coming back).
-- Quiet period [10 min]: an uncertain visit ends at the first door opening after which the door stays closed for this long. The end time is that door opening. A door opening in the first 2 minutes of the visit (the guest coming in) does not count.
+- Quiet period [10 min]: an uncertain visit ends at the first door opening after which the door stays closed for this long. The end time is that door opening. Entry grace [2 min]: a door opening in the first 2 minutes after the signal that turned the ring into a visit (the guest coming in) does not count. The grace counts from that signal, not from the ring.
 - Maximum duration [4 h]: an uncertain visit with no detected end ends at start plus this time, reason `max_duration`.
 - Phone grace period [5 min]: a guest phone must stay away this long before it counts as leaving. The end time is the moment it went away.
 - A certain visit ends when all its guest phones have left. A guest phone joining an open uncertain visit makes it certain; its later end follows the phone rule.

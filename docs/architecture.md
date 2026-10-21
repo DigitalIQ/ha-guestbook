@@ -96,12 +96,14 @@ class ChangeKind(StrEnum):
     OPENED, SIGNAL_ADDED, CLOSED, CLASSIFIED, CORRECTED
 
 @dataclass(frozen=True)
-class Change: kind: ChangeKind; entry: Entry; signal: Signal | None = None
+class Change: kind: ChangeKind; entry: Entry; signal: Signal | None = None; previous: Entry | None = None
+    # previous: shallow copy of the entry before a reclassification (resident arrival), else None
 
 class Engine:
     def __init__(self, settings: Settings, guests: list[Guest], entries: Iterable[Entry] = ()) -> None
         # entries: open/pending entries restored from the store
     def handle(self, signal: Signal) -> list[Change]
+    def guest_present(self, guest_id: str, tracker: str, now: datetime) -> list[Change]
     def advance(self, now: datetime) -> list[Change]      # fire all deadlines <= now
     def next_deadline(self) -> datetime | None
     def active_entries(self) -> list[Entry]                # open visits and pending rings
@@ -118,6 +120,8 @@ A `handle` call first runs `advance(signal.time)`, so deadlines before the signa
 Resident signals (ticket 03): the engine keeps resident signals of the last `resident_window` in memory only. They are not stored; a restart inside that window forgets them (accepted, the window is minutes). A `RING` with a resident signal in `[ring - resident_window, ring]` becomes a `RESIDENT_ARRIVAL` at once (one `CLASSIFIED` change, no `OPENED`): `reason` `resident_signal`, `start` = `end` = ring time, `signals` = the resident signals plus the ring, `certainty` None. A `RESIDENT` signal turns every pending ring into a `RESIDENT_ARRIVAL` (`end` = signal time) and every open uncertain visit with a ring inside its ring window (`ring <= signal < ring + ring_window`) as well; `end_reason` is cleared. A `CLASSIFIED` change whose entry has an `end` is final: the entry left `active_entries()`. Resident signals outside these cases change nothing and are not appended to visits.
 
 Guest phones (ticket 05): `GUEST_HOME` / `GUEST_AWAY` signals carry `source` = the tracker entity id and `guest_id`; a signal for an unknown guest is ignored. `GUEST_HOME` with no open visit opens a certain `VISIT` (`OPENED`, `reason` `guest_phone`, one guest). With an open visit the guest joins it (`SIGNAL_ADDED`): an open certain visit is preferred, an open uncertain one becomes `CERTAIN` and keeps its start decision (`reason`). A guest already in an open visit only gets the signal appended. `GUEST_AWAY` is appended to every open visit that contains the guest. A certain visit has no max duration and ignores door quiet periods: it is open while the last signal of any known tracker is `GUEST_HOME`. Once every tracker is away its deadline is the latest away time plus `phone_grace`, and it ends there (`CLOSED`, `end` = that away time, `end_reason` `guests_left`). A phone back before the deadline cancels it; at the deadline it is too late (half-open), the old visit closes and a new one opens. Trackers no longer listed in the guests count as away, so `set_guests` can make a visit due; the caller advances afterwards. A ring plus door or presence while a certain visit is open does not open an uncertain visit: the pending rings are reported as `CLOSED` and the door or presence signal is appended to the certain visit (`SIGNAL_ADDED`). A resident signal never turns a certain visit into a resident arrival.
+
+Guest already home (lifecycle fix): `guest_present(guest_id, tracker, now)` is for a phone that is `home` at startup or when its guest is added, without a state change. It does nothing for an unknown guest or when an open visit already has the guest (restored visits are not duplicated). Otherwise it behaves like `GUEST_HOME` at `now` (joins an open visit), but a visit it opens has `reason` `guest_phone_at_start`. The runtime calls it for every guest with a `home` tracker in `async_start` and `async_set_guests`.
 
 ## Home Assistant APIs
 
@@ -145,8 +149,8 @@ The runtime fires them from the Changes of entries of kind `VISIT` (ticket 08). 
 
 - `guestbook_visit_started`: `OPENED` or `CLASSIFIED` change of an open visit. `entry_id`, `guests`, `certainty`, `start`.
 - `guestbook_visit_event`: `SIGNAL_ADDED` change of a visit. `entry_id`, `guests`, `certainty`, `signal` (SignalKind value), `source` (entity id), `time`. The signal that turns a ring into a visit is part of `started` and not repeated. A guest phone joining an open visit is a `guest_home` event.
-- `guestbook_visit_ended`: `CLOSED` change of a visit. `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (whole seconds).
-- Resident arrivals and unanswered rings fire nothing, also not when an already started visit is reclassified as a resident arrival (no `ended` follows then).
+- `guestbook_visit_ended`: `CLOSED` change of a visit. `entry_id`, `guests`, `certainty`, `start`, `end`, `duration` (whole seconds), `reason` (the end reason code: `door_then_quiet`, `max_duration`, `guests_left`). A visit that already fired `started` and is then reclassified as a resident arrival fires `ended` too, with `reason` `resident_arrival` and the data of the visit as it was (certainty `uncertain`).
+- Resident arrivals and unanswered rings that never fired `started` fire nothing.
 
 ## Testing
 

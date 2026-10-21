@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -32,6 +33,7 @@ RESIDENT_SIGNAL = Reason("resident_signal", "Resident signal close to the ring")
 DOOR_THEN_QUIET = Reason("door_then_quiet", "Door opening followed by the quiet period")
 MAX_DURATION = Reason("max_duration", "No end detected, ended at the maximum duration")
 GUEST_PHONE = Reason("guest_phone", "Guest phone joined the network")
+GUEST_PHONE_AT_START = Reason("guest_phone_at_start", "Guest phone was already on the network at startup")
 GUESTS_LEFT = Reason("guests_left", "All guest phones left")
 
 VISIT_SIGNALS = {
@@ -69,6 +71,13 @@ class Engine:
         elif signal.kind in VISIT_SIGNALS:
             changes.extend(self._append_to_open_visits(signal))
         return changes
+
+    def guest_present(self, guest_id: str, tracker: str, now: datetime) -> list[Change]:
+        """Report a guest phone that is already home (startup, new guest); a visit that has the guest is left alone."""
+        if any(g["id"] == guest_id for e in self._active.values() if e.kind is EntryKind.VISIT for g in e.guests):
+            return []
+        signal = Signal(SignalKind.GUEST_HOME, now, tracker, "home", guest_id)
+        return [*self.advance(now), *self._handle_guest_home(signal, GUEST_PHONE_AT_START)]
 
     def advance(self, now: datetime) -> list[Change]:
         due = sorted(
@@ -144,7 +153,7 @@ class Engine:
         _, visit.end, visit.end_reason = self._visit_end(visit)
         return Change(ChangeKind.CLOSED, visit)
 
-    def _handle_guest_home(self, signal: Signal) -> list[Change]:
+    def _handle_guest_home(self, signal: Signal, reason: Reason = GUEST_PHONE) -> list[Change]:
         guest = next((g for g in self._guests if g.id == signal.guest_id), None)
         if guest is None:
             return []
@@ -153,14 +162,14 @@ class Engine:
         certain_first = sorted(visits, key=lambda v: v.certainty is not Certainty.CERTAIN)
         visit = next((v for v in visits if member in v.guests), None) or next(iter(certain_first), None)
         if visit is None:
-            return [self._open_phone_visit(signal, member)]
+            return [self._open_phone_visit(signal, member, reason)]
         if member not in visit.guests:
             visit.guests.append(member)
         visit.certainty = Certainty.CERTAIN
         visit.signals.append(signal)
         return [Change(ChangeKind.SIGNAL_ADDED, visit, signal)]
 
-    def _open_phone_visit(self, signal: Signal, member: dict[str, str]) -> Change:
+    def _open_phone_visit(self, signal: Signal, member: dict[str, str], reason: Reason) -> Change:
         visit = Entry(
             id=uuid4().hex,
             kind=EntryKind.VISIT,
@@ -168,7 +177,7 @@ class Engine:
             certainty=Certainty.CERTAIN,
             guests=[member],
             signals=[signal],
-            reason=GUEST_PHONE,
+            reason=reason,
             settings=self._settings.to_dict(),
         )
         self._active[visit.id] = visit
@@ -227,6 +236,7 @@ class Engine:
         return any(s.kind is SignalKind.RING and s.time <= now < s.time + window for s in visit.signals)
 
     def _resident_arrival(self, entry: Entry, end: datetime, signal: Signal) -> Change:
+        previous = replace(entry)
         entry.kind = EntryKind.RESIDENT_ARRIVAL
         entry.certainty = None
         entry.end = end
@@ -234,7 +244,7 @@ class Engine:
         entry.reason = RESIDENT_SIGNAL
         entry.settings = self._settings.to_dict()
         entry.rule_state = {}
-        return Change(ChangeKind.CLASSIFIED, entry, signal)
+        return Change(ChangeKind.CLASSIFIED, entry, signal, previous)
 
     def _open_pending_ring(self, signal: Signal) -> Change:
         entry = Entry(

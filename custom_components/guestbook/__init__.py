@@ -39,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GuestbookConfigEntry) ->
     store = GuestbookStore(hass)
     await store.async_load()
     guests = _guests(entry)
-    runtime = GuestbookRuntime(hass, store, Engine(Settings(), guests=guests, entries=store.entries))
+    runtime = GuestbookRuntime(hass, store, Engine(Settings(), guests=guests, entries=store.entries), guests)
     adapter = SignalAdapter(hass, entry.data, guests, runtime.async_handle_signal)
     entry.runtime_data = runtime
 
