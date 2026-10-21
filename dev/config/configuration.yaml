@@ -1,4 +1,7 @@
 # Local test instance for Guestbook development. Not for production. Invented names only.
+homeassistant:
+  time_zone: Europe/Berlin
+
 default_config:
 
 logger:
