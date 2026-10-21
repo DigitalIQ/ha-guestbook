@@ -7,7 +7,6 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -26,16 +25,15 @@ from .const import (
     SOURCE_ACTION,
 )
 from .core import (
-    Certainty,
     Change,
     ChangeKind,
     Correction,
+    CorrectionKind,
     EffectiveKind,
     Engine,
     Entry,
     EntryKind,
     Guest,
-    Reason,
     Settings,
     Signal,
     effective_end,
@@ -44,6 +42,7 @@ from .core import (
     effective_start,
     entries_in_range,
     expired_entries,
+    manual_visit,
     to_jsonl,
 )
 from .store import GuestbookStore
@@ -175,7 +174,7 @@ class GuestbookRuntime:
     def async_correct_entry(
         self,
         entry_id: str,
-        kind: str,
+        kind: CorrectionKind,
         *,
         guest_name: str | None = None,
         start: datetime | None = None,
@@ -195,14 +194,14 @@ class GuestbookRuntime:
         now = dt_util.utcnow()
         entry.correction = Correction(kind, now, source, guest_name, start, end, note)
         self._store.async_put(entry)
-        if kind in ("resident", "delivery"):
+        if kind in (CorrectionKind.RESIDENT, CorrectionKind.DELIVERY):
             self._apply(self._engine.close(entry.id, now))
         end_time = effective_end(entry)
         self._hass.bus.async_fire(
             EVENT_VISIT_CORRECTED,
             {
                 "entry_id": entry.id,
-                "kind": kind,
+                "kind": kind.value,
                 "guest_name": guest_name,
                 "guests": effective_guests(entry),
                 "certainty": entry.certainty.value if entry.certainty else None,
@@ -217,24 +216,7 @@ class GuestbookRuntime:
     def async_add_visit(self, guests: list[str], start: datetime, end: datetime, note: str | None = None) -> Entry:
         """Log a visit the sensors missed. Names that match a guest profile (any case) use it."""
         self._check_times(start, end)
-        profiles = {guest.name.casefold(): guest for guest in self._guests}
-        members: dict[str, dict[str, str]] = {}
-        for name in (n.strip() for n in guests if n.strip()):
-            profile = profiles.get(name.casefold())
-            members.setdefault(
-                name.casefold(), {"id": profile.id, "name": profile.name} if profile else {"id": "", "name": name}
-            )
-        entry = Entry(
-            id=uuid4().hex,
-            kind=EntryKind.VISIT,
-            start=start,
-            end=end,
-            certainty=Certainty.CERTAIN,
-            guests=list(members.values()),
-            reason=Reason("manual", "Added by hand"),
-            notes=[note] if note else [],
-            settings=self._engine.settings.to_dict(),
-        )
+        entry = manual_visit(guests, self._guests, start, end, note, self._engine.settings)
         self._store.async_put(entry)
         self._notify()
         return entry
@@ -331,6 +313,6 @@ class GuestbookRuntime:
             self._unsub_timer = None
 
     @callback
-    def _async_deadline_reached(self, now) -> None:
+    def _async_deadline_reached(self, now: datetime) -> None:
         self._unsub_timer = None
         self._apply(self._engine.advance(now))

@@ -50,7 +50,6 @@ ATTR_GUESTS = "guests"
 ATTR_START = "start"
 ATTR_END = "end"
 ATTR_NOTE = "note"
-CORRECTION_KINDS = ("resident", "delivery", "visit", "unknown")
 EXPORT_DIR = "guestbook"
 PURGE_INTERVAL = timedelta(days=1)
 SOURCE_ACTION = "action"

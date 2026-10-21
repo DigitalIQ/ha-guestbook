@@ -8,7 +8,7 @@ from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
 
 from custom_components.guestbook.const import CONF_RESIDENTS
-from custom_components.guestbook.core import EffectiveKind
+from custom_components.guestbook.core import CorrectionKind, EffectiveKind
 
 from .conftest import ALEX_PHONE, add_guest, add_phone, advance, open_options_step, ring, set_options, set_tracker
 
@@ -190,7 +190,7 @@ async def test_no_end_push_when_a_correction_closes_the_visit(hass: HomeAssistan
     runtime = setup_guestbook.runtime_data
     (visit,) = runtime.async_open_visits()
 
-    runtime.async_correct_entry(visit.id, "delivery")
+    runtime.async_correct_entry(visit.id, CorrectionKind.DELIVERY)
 
     assert [c.data["title"] for c in calls] == ["Visit"]
 

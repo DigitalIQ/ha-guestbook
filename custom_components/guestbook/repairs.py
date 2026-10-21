@@ -6,7 +6,7 @@ import logging
 from collections.abc import Mapping
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import probatio
 from homeassistant.components.repairs import RepairsFlow
@@ -30,8 +30,11 @@ from .const import (
     SOURCE_KEYS,
     SUBENTRY_GUEST,
 )
-from .core import effective_end, effective_start
+from .core import CorrectionKind, effective_end, effective_start, normalize_name
 from .guests import guests_of
+
+if TYPE_CHECKING:
+    from . import GuestbookConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -156,19 +159,19 @@ class GuestSuggestions:
                 domain == DOMAIN
                 and issue_id.startswith(f"{GUEST_SUGGESTION}_")
                 and data.get("entry_id") == self._entry.entry_id
-                and str(data.get("name", "")).strip().casefold() in names
+                and normalize_name(str(data.get("name", ""))) in names
             ):
                 ir.async_delete_issue(self._hass, DOMAIN, issue_id)
 
     @callback
     def _handle_correction(self, event: Event) -> None:
         name = str(event.data.get("guest_name") or "").strip()
-        if event.data.get("kind") != "visit" or not name or name.casefold() in self._guest_names():
+        if event.data.get("kind") != CorrectionKind.VISIT or not name or normalize_name(name) in self._guest_names():
             return
         ir.async_create_issue(
             self._hass,
             DOMAIN,
-            f"{GUEST_SUGGESTION}_{name.casefold()}",
+            f"{GUEST_SUGGESTION}_{normalize_name(name)}",
             data={"entry_id": self._entry.entry_id, "name": name, "visit_id": event.data["entry_id"]},
             is_fixable=True,
             is_persistent=True,
@@ -178,7 +181,7 @@ class GuestSuggestions:
         )
 
     def _guest_names(self) -> set[str]:
-        return {guest.name.strip().casefold() for guest in guests_of(self._entry)}
+        return {normalize_name(guest.name) for guest in guests_of(self._entry)}
 
 
 @callback
@@ -189,7 +192,7 @@ def async_delete_issues(hass: HomeAssistant) -> None:
             ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
-async def async_suggested_trackers(hass: HomeAssistant, entry: ConfigEntry, visit_id: str | None) -> list[str]:
+async def async_suggested_trackers(hass: HomeAssistant, entry: GuestbookConfigEntry, visit_id: str | None) -> list[str]:
     """Device trackers that were home during the visit and belong to no guest and no resident.
 
     The history comes from the recorder when it is loaded. Without it, or without the visit, the trackers that are
@@ -251,7 +254,7 @@ class GuestSuggestionFlow(RepairsFlow):
             return self.async_abort(reason="not_loaded")
         name = str(data["name"])
         if user_input is not None:
-            if name.casefold() not in {guest.name.strip().casefold() for guest in guests_of(entry)}:
+            if normalize_name(name) not in {normalize_name(guest.name) for guest in guests_of(entry)}:
                 self.hass.config_entries.async_add_subentry(
                     entry,
                     ConfigSubentry(

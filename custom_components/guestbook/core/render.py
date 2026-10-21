@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from datetime import datetime, tzinfo
 
 from .effective import EffectiveKind, effective_guests, effective_kind
-from .models import Certainty, Entry, Reason, Signal, SignalKind
+from .models import Certainty, CorrectionKind, Entry, Reason, Signal, SignalKind
 
 DEFAULT_LANGUAGE = "en"
 ACTION_SOURCE = "action"
@@ -173,7 +173,8 @@ def _footer(entry: Entry, texts: dict[str, str], clock, tz: tzinfo) -> list[str]
         footer.append(f"{texts['end']}: {_reason(entry.end_reason, texts)}")
     if correction := entry.correction:
         source = texts["push"] if correction.source == "push" else texts["action_source"]
-        label = texts["resident_kind"] if correction.kind == "resident" else texts.get(correction.kind, correction.kind)
+        kind = correction.kind.value
+        label = texts["resident_kind"] if correction.kind is CorrectionKind.RESIDENT else texts.get(kind, kind)
         stamp = correction.time.astimezone(tz).strftime("%Y-%m-%d %H:%M")
         parts = [label]
         if correction.guest_name:

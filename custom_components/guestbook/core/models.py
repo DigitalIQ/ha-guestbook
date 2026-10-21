@@ -16,6 +16,11 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
+def normalize_name(name: str) -> str:
+    """The form in which guest names are compared: trimmed and case-insensitive."""
+    return name.strip().casefold()
+
+
 class SignalKind(StrEnum):
     RING = "ring"
     DOOR_OPEN = "door_open"
@@ -33,6 +38,13 @@ class EntryKind(StrEnum):
     VISIT = "visit"
     UNANSWERED_RING = "unanswered_ring"
     RESIDENT_ARRIVAL = "resident_arrival"
+
+
+class CorrectionKind(StrEnum):
+    RESIDENT = "resident"
+    DELIVERY = "delivery"
+    VISIT = "visit"
+    UNKNOWN = "unknown"
 
 
 class Certainty(StrEnum):
@@ -91,7 +103,7 @@ class Reason:
 
 @dataclass
 class Correction:
-    kind: str  # resident | delivery | visit | unknown
+    kind: CorrectionKind
     time: datetime
     source: str  # push | action
     guest_name: str | None = None
@@ -99,9 +111,12 @@ class Correction:
     end: datetime | None = None
     note: str | None = None
 
+    def __post_init__(self) -> None:
+        self.kind = CorrectionKind(self.kind)
+
     def to_dict(self) -> dict[str, Any]:
         return {
-            "kind": self.kind,
+            "kind": self.kind.value,
             "time": self.time.isoformat(),
             "source": self.source,
             "guest_name": self.guest_name,
@@ -113,7 +128,7 @@ class Correction:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Correction:
         return cls(
-            kind=data["kind"],
+            kind=CorrectionKind(data["kind"]),
             time=datetime.fromisoformat(data["time"]),
             source=data["source"],
             guest_name=data.get("guest_name"),

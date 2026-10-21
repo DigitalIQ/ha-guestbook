@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from .models import CorrectionKind
+
 DEFAULT_LANGUAGE = "en"
 ACTION_PREFIX = "GUESTBOOK_"
-CORRECTION_KINDS = ("resident", "delivery", "visit", "unknown")
 ANDROID_ACTION_LIMIT = 3
 
 
@@ -92,27 +93,30 @@ def push_message(kind: PushKind, language: str, guests: list[str], entry_id: str
     return " ".join(parts)
 
 
-def action_id(kind: str, entry_id: str) -> str:
+def action_id(kind: CorrectionKind, entry_id: str) -> str:
     return f"{ACTION_PREFIX}{kind.upper()}_{entry_id}"
 
 
-def parse_action_id(action: str) -> tuple[str, str] | None:
+def parse_action_id(action: str) -> tuple[CorrectionKind, str] | None:
     """Return (correction kind, entry id) of an action id built by `action_id`, else None."""
     if not action.startswith(ACTION_PREFIX):
         return None
     kind, _, entry_id = action.removeprefix(ACTION_PREFIX).partition("_")
-    if kind.lower() not in CORRECTION_KINDS or kind != kind.upper() or not entry_id:
+    if kind != kind.upper() or not entry_id:
         return None
-    return kind.lower(), entry_id
+    try:
+        return CorrectionKind(kind.lower()), entry_id
+    except ValueError:
+        return None
 
 
 def correction_actions(language: str, entry_id: str, *, android: bool = False) -> list[dict[str, str]]:
     """Return the buttons of the correction question; Android shows three at most."""
     texts = _texts(language)
     actions = []
-    for kind in CORRECTION_KINDS:
-        action = {"action": action_id(kind, entry_id), "title": texts[kind]}
-        if kind == "visit":
+    for kind in CorrectionKind:
+        action = {"action": action_id(kind, entry_id), "title": texts[kind.value]}
+        if kind is CorrectionKind.VISIT:
             action |= {
                 "behavior": "textInput",
                 "textInputButtonTitle": texts["save"],
