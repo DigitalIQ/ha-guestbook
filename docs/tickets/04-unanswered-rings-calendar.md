@@ -6,6 +6,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] Rule core: ring window expires with nothing gives `unanswered_ring` (reason `ring_no_entry`)
-- [ ] Calendar "Rings" with one short event per unanswered ring
-- [ ] Unanswered rings never show in the visits calendar
+- [x] Rule core: ring window expires with nothing gives `unanswered_ring` (reason `ring_no_entry`)
+- [x] Calendar "Rings" with one short event per unanswered ring
+- [x] Unanswered rings never show in the visits calendar

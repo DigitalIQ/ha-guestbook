@@ -134,13 +134,18 @@ async def test_pending_ring_survives_a_restart(hass: HomeAssistant, setup_guestb
     assert len(await get_visits(hass)) == 1
 
 
-async def test_expired_pending_ring_is_not_stored(hass: HomeAssistant, setup_guestbook, freezer, hass_storage):
+async def test_expired_pending_ring_is_stored_as_unanswered_ring(
+    hass: HomeAssistant, setup_guestbook, freezer, hass_storage
+):
     await ring(hass)
     await advance(hass, freezer, timedelta(minutes=6))
 
     assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
 
-    assert hass_storage["guestbook.entries"]["data"]["entries"] == []
+    (stored,) = hass_storage["guestbook.entries"]["data"]["entries"]
+    assert stored["kind"] == "unanswered_ring"
+    assert stored["reason"]["code"] == "ring_no_entry"
+    assert stored["end"] == "2026-10-21T14:01:00+00:00"
 
 
 async def test_doorbell_event_after_reconnect_is_not_a_ring(hass: HomeAssistant, setup_guestbook):
@@ -152,7 +157,7 @@ async def test_doorbell_event_after_reconnect_is_not_a_ring(hass: HomeAssistant,
     assert await get_visits(hass) == []
 
 
-async def test_pending_ring_that_expires_during_downtime_is_dropped(hass: HomeAssistant, setup_guestbook, freezer):
+async def test_pending_ring_that_expires_during_downtime_is_not_a_visit(hass: HomeAssistant, setup_guestbook, freezer):
     await ring(hass)
     assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
     freezer.tick(timedelta(minutes=10))
@@ -163,3 +168,14 @@ async def test_pending_ring_that_expires_during_downtime_is_dropped(hass: HomeAs
     await hass.async_block_till_done()
 
     assert await get_visits(hass) == []
+
+
+async def test_rings_merged_into_a_visit_leave_one_stored_entry(hass: HomeAssistant, setup_guestbook, hass_storage):
+    await ring(hass)
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_unload(setup_guestbook.entry_id)
+    (stored,) = hass_storage["guestbook.entries"]["data"]["entries"]
+    assert stored["kind"] == "visit"

@@ -30,6 +30,9 @@
     "calendar": {
       "visits": {
         "name": "Visits"
+      },
+      "rings": {
+        "name": "Rings"
       }
     }
   },

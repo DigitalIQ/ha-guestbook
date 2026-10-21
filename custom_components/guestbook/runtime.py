@@ -38,8 +38,8 @@ class GuestbookRuntime:
         self._apply(self._engine.handle(signal))
 
     @callback
-    def async_visits(self) -> list[Entry]:
-        return [entry for entry in self._store.entries if entry.kind is EntryKind.VISIT]
+    def async_entries(self, kind: EntryKind) -> list[Entry]:
+        return [entry for entry in self._store.entries if entry.kind is kind]
 
     @callback
     def _apply(self, changes: list[Change]) -> None:

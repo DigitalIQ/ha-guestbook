@@ -100,29 +100,63 @@ def test_deadline_follows_the_settings_ring_window():
     assert engine.next_deadline() == at("14:02")
 
 
-def test_pending_ring_is_dropped_when_the_window_expires():
+def test_ring_with_nothing_in_the_window_is_an_unanswered_ring():
     engine = make_engine()
-    engine.handle(signal(SignalKind.RING, "14:00"))
+    ring = signal(SignalKind.RING, "14:00", "event.doorbell")
+    pending = engine.handle(ring)[0].entry
 
     assert engine.advance(at("14:04:59")) == []
     changes = engine.advance(at("14:05"))
 
-    assert [c.kind for c in changes] == [ChangeKind.CLOSED]
+    assert [(c.kind, c.entry) for c in changes] == [(ChangeKind.CLASSIFIED, pending)]
+    assert pending.kind is EntryKind.UNANSWERED_RING
+    assert pending.reason.code == "ring_no_entry"
+    assert pending.certainty is None
+    assert pending.signals == [ring]
+    assert (pending.start, pending.end) == (at("14:00"), at("14:01"))
     assert engine.active_entries() == []
     assert engine.next_deadline() is None
 
 
-def test_deadlines_before_a_signal_fire_before_the_signal_is_handled():
+def test_unanswered_ring_keeps_a_settings_snapshot_from_decision_time():
     engine = make_engine()
     engine.handle(signal(SignalKind.RING, "14:00"))
-    engine.handle(signal(SignalKind.RING, "14:20"))
+    engine.set_settings(Settings(ring_window=timedelta(minutes=9)))
 
-    changes = engine.handle(signal(SignalKind.DOOR_OPEN, "14:21"))
+    (change,) = engine.advance(at("14:05"))
+
+    assert Settings.from_dict(change.entry.settings) == Settings(ring_window=timedelta(minutes=9))
+
+
+def test_each_expired_ring_becomes_its_own_unanswered_ring():
+    engine = make_engine()
+    engine.handle(signal(SignalKind.RING, "14:00"))
+    engine.handle(signal(SignalKind.RING, "14:01"))
+
+    changes = engine.advance(at("15:00"))
+
+    assert [(c.entry.kind, c.entry.start) for c in changes] == [
+        (EntryKind.UNANSWERED_RING, at("14:00")),
+        (EntryKind.UNANSWERED_RING, at("14:01")),
+    ]
+
+
+def test_deadlines_before_a_signal_fire_before_the_signal_is_handled():
+    engine = make_engine()
+    first = engine.handle(signal(SignalKind.RING, "14:00"))[0].entry
+
+    changes = engine.handle(signal(SignalKind.RING, "14:20"))
+    changes += engine.handle(signal(SignalKind.DOOR_OPEN, "14:21"))
+    assert first.kind is EntryKind.UNANSWERED_RING
 
     (visit,) = engine.active_entries()
     assert visit.start == at("14:20")
     assert [s.kind for s in visit.signals] == [SignalKind.RING, SignalKind.DOOR_OPEN]
-    assert {c.entry.start for c in changes} == {at("14:20")}
+    assert [(c.kind, c.entry.start) for c in changes] == [
+        (ChangeKind.CLASSIFIED, at("14:00")),
+        (ChangeKind.OPENED, at("14:20")),
+        (ChangeKind.CLASSIFIED, at("14:20")),
+    ]
 
 
 def test_two_rings_before_the_door_opening_make_one_visit():

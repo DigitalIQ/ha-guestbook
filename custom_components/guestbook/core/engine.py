@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from .models import (
@@ -20,12 +20,14 @@ from .models import (
 )
 
 DEADLINE = "deadline"
+UNANSWERED_RING_LENGTH = timedelta(minutes=1)  # calendar length of the short event
 
 RING_THEN: dict[SignalKind, Reason] = {
     SignalKind.DOOR_OPEN: Reason("ring_then_door", "Ring followed by a door opening within the ring window"),
     SignalKind.PRESENCE_ON: Reason("ring_then_presence", "Ring followed by presence within the ring window"),
 }
 
+RING_NO_ENTRY = Reason("ring_no_entry", "No door opening, presence or resident signal in the ring window")
 RESIDENT_SIGNAL = Reason("resident_signal", "Resident signal close to the ring")
 DOOR_THEN_QUIET = Reason("door_then_quiet", "Door opening followed by the quiet period")
 MAX_DURATION = Reason("max_duration", "No end detected, ended at the maximum duration")
@@ -71,8 +73,7 @@ class Engine:
         for _, entry in due:
             del self._active[entry.id]
             if entry.kind is EntryKind.PENDING_RING:
-                entry.end = self._deadline(entry)
-                changes.append(Change(ChangeKind.CLOSED, entry))
+                changes.append(self._unanswered_ring(entry))
             else:
                 changes.append(self._end_visit(entry))
         return changes
@@ -125,6 +126,14 @@ class Engine:
                 visit.signals.append(signal)
                 changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
         return changes
+
+    def _unanswered_ring(self, ring: Entry) -> Change:
+        ring.kind = EntryKind.UNANSWERED_RING
+        ring.end = ring.start + UNANSWERED_RING_LENGTH
+        ring.reason = RING_NO_ENTRY
+        ring.settings = self._settings.to_dict()
+        ring.rule_state = {}
+        return Change(ChangeKind.CLASSIFIED, ring)
 
     def _handle_ring(self, signal: Signal) -> Change:
         since = signal.time - self._settings.resident_window
