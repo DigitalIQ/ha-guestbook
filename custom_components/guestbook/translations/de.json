@@ -37,7 +37,8 @@
           "push_arrival": "Ankunft",
           "push_end": "Ende des Besuchs",
           "push_correction": "Korrekturfrage",
-          "push_unanswered_ring": "Unbeantwortetes Klingeln"
+          "push_unanswered_ring": "Unbeantwortetes Klingeln",
+          "retention": "Einträge aufbewahren (Tage)"
         },
         "data_description": {
           "phones": "Handys mit der Home-Assistant-Companion-App. Nur sie bekommen die Schaltflächen der Korrekturfrage.",
@@ -45,7 +46,8 @@
           "push_arrival": "Push, wenn ein Besuch beginnt und kein Bewohner zu Hause ist.",
           "push_end": "Push, wenn ein Besuch endet und kein Bewohner zu Hause ist.",
           "push_correction": "Bei jedem unsicheren Besuch fragen, was es war, auch wenn ein Bewohner zu Hause ist.",
-          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat."
+          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat.",
+          "retention": "Abgeschlossene Einträge, die älter sind, werden beim Start und einmal am Tag gelöscht. Offene Besuche bleiben immer."
         }
       }
     }
@@ -195,6 +197,20 @@
         "note": {
           "name": "Notiz",
           "description": "Der Text, der hinzugefügt wird."
+        }
+      }
+    },
+    "export": {
+      "name": "Einträge exportieren",
+      "description": "Schreibt die Einträge als JSON-Zeilen, einen Eintrag pro Zeile, in den Ordner guestbook im Konfigurationsverzeichnis. Gibt den Dateipfad und die Anzahl der Einträge zurück.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "Nur Einträge, die zu dieser Zeit oder später beginnen. Ohne Angabe beginnt der Export beim ältesten Eintrag."
+        },
+        "end": {
+          "name": "Ende",
+          "description": "Nur Einträge, die vor dieser Zeit beginnen. Ohne Angabe reicht der Export bis zum neuesten Eintrag."
         }
       }
     }

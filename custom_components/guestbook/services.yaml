@@ -68,3 +68,11 @@ add_note:
       example: Probably the postman
       selector:
         text:
+export:
+  fields:
+    start:
+      selector:
+        datetime:
+    end:
+      selector:
+        datetime:
