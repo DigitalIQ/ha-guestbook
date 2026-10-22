@@ -33,7 +33,7 @@ from .runtime import GuestbookRuntime
 RESIDENT_UNLOCK_SCHEMA = probatio.Schema({probatio.Optional(ATTR_SOURCE): cv.string})
 CORRECT_ENTRY_SCHEMA = probatio.Schema(
     {
-        probatio.Required(ATTR_ENTRY_ID): cv.string,
+        probatio.Optional(ATTR_ENTRY_ID): cv.string,
         probatio.Required(ATTR_KIND): probatio.Coerce(CorrectionKind),
         probatio.Optional(ATTR_GUEST_NAME): cv.string,
         probatio.Optional(ATTR_START): cv.datetime,
@@ -59,7 +59,7 @@ ADD_VISIT_SCHEMA = probatio.Schema(
     }
 )
 ADD_NOTE_SCHEMA = probatio.Schema(
-    {probatio.Required(ATTR_ENTRY_ID): cv.string, probatio.Required(ATTR_NOTE): cv.string}
+    {probatio.Optional(ATTR_ENTRY_ID): cv.string, probatio.Required(ATTR_NOTE): cv.string}
 )
 EXPORT_SCHEMA = probatio.Schema({probatio.Optional(ATTR_START): cv.datetime, probatio.Optional(ATTR_END): cv.datetime})
 
@@ -86,7 +86,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def correct_entry(call: ServiceCall) -> dict[str, Any] | None:
         runtime = first_runtime()
         entry = runtime.async_correct_entry(
-            call.data[ATTR_ENTRY_ID],
+            call.data.get(ATTR_ENTRY_ID),
             call.data[ATTR_KIND],
             guest_name=call.data.get(ATTR_GUEST_NAME),
             start=_utc(call.data.get(ATTR_START)),
@@ -116,7 +116,7 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def add_note(call: ServiceCall) -> None:
         runtime = first_runtime()
-        runtime.async_add_note(call.data[ATTR_ENTRY_ID], call.data[ATTR_NOTE])
+        runtime.async_add_note(call.data.get(ATTR_ENTRY_ID), call.data[ATTR_NOTE])
 
     async def export(call: ServiceCall) -> dict[str, Any]:
         runtime = first_runtime()

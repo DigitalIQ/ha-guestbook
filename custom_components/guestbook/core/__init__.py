@@ -3,6 +3,7 @@
 from .archive import entries_in_range, expired_entries, to_jsonl
 from .effective import EffectiveKind, effective_end, effective_guests, effective_kind, effective_start
 from .engine import Engine
+from .latest import latest_entry
 from .manual import manual_visit
 from .messages import PushKind, action_id, correction_actions, parse_action_id, push_message, push_title, unknown_guest
 from .models import (
@@ -50,6 +51,7 @@ __all__ = [
     "effective_start",
     "entries_in_range",
     "expired_entries",
+    "latest_entry",
     "manual_visit",
     "normalize_name",
     "parse_action_id",

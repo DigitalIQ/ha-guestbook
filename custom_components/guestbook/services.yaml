@@ -7,7 +7,6 @@ resident_unlock:
 correct_entry:
   fields:
     entry_id:
-      required: true
       example: 3f9c1d0e5a7b4c2d8e6f0a1b2c3d4e5f
       selector:
         text:
@@ -59,7 +58,6 @@ add_visit:
 add_note:
   fields:
     entry_id:
-      required: true
       example: 3f9c1d0e5a7b4c2d8e6f0a1b2c3d4e5f
       selector:
         text:

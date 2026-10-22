@@ -177,6 +177,9 @@
     "entry_pending": {
       "message": "Der Eintrag {entry_id} ist ein Klingeln, das noch auf eine Türöffnung oder Anwesenheit wartet. Korrigiere ihn, wenn das Klingelfenster vorbei ist."
     },
+    "no_latest_entry": {
+      "message": "Es gibt noch keinen Besuch und kein unbeantwortetes Klingeln, das als letzter Eintrag gilt. Gib eine Eintrags-ID an oder warte, bis es einen Eintrag gibt."
+    },
     "end_before_start": {
       "message": "Das Ende muss nach dem Beginn liegen."
     }
@@ -198,7 +201,7 @@
       "fields": {
         "entry_id": {
           "name": "Eintrags-ID",
-          "description": "Die ID des Besuchs oder Klingelns, zu finden in den Sensorattributen und den Bus-Ereignissen."
+          "description": "Die ID des Besuchs oder Klingelns, zu finden in den Sensorattributen und in den Bus-Ereignissen. Leer lassen, um den letzten Eintrag zu korrigieren: den jüngsten Besuch oder das jüngste unbeantwortete Klingeln, offen oder beendet."
         },
         "kind": {
           "name": "Art",
@@ -250,7 +253,7 @@
       "fields": {
         "entry_id": {
           "name": "Eintrags-ID",
-          "description": "Die ID des Besuchs oder Klingelns."
+          "description": "Die ID des Besuchs oder Klingelns. Leer lassen, um die Notiz zum letzten Eintrag zu schreiben: dem jüngsten Besuch oder dem jüngsten unbeantworteten Klingeln, offen oder beendet."
         },
         "note": {
           "name": "Notiz",

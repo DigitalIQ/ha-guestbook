@@ -177,6 +177,9 @@
     "entry_pending": {
       "message": "The entry {entry_id} is a ring that is still waiting for a door opening or presence. Correct it after the ring window has ended."
     },
+    "no_latest_entry": {
+      "message": "There is no visit or unanswered ring to use as the latest entry yet. Pass an entry id, or wait until an entry exists."
+    },
     "end_before_start": {
       "message": "The end must be after the start."
     }
@@ -198,7 +201,7 @@
       "fields": {
         "entry_id": {
           "name": "Entry id",
-          "description": "The id of the visit or ring, shown in the sensor attributes and the bus events."
+          "description": "The id of the visit or ring, shown in the sensor attributes and the bus events. Leave it empty to correct the latest entry: the most recent visit or unanswered ring, open or closed."
         },
         "kind": {
           "name": "Kind",
@@ -250,7 +253,7 @@
       "fields": {
         "entry_id": {
           "name": "Entry id",
-          "description": "The id of the visit or ring."
+          "description": "The id of the visit or ring. Leave it empty to add the note to the latest entry: the most recent visit or unanswered ring, open or closed."
         },
         "note": {
           "name": "Note",

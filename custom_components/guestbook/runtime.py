@@ -46,6 +46,7 @@ from .core import (
     effective_start,
     entries_in_range,
     expired_entries,
+    latest_entry,
     manual_visit,
     to_jsonl,
 )
@@ -190,7 +191,7 @@ class GuestbookRuntime:
     @callback
     def async_correct_entry(
         self,
-        entry_id: str,
+        entry_id: str | None,
         kind: CorrectionKind,
         *,
         guest_name: str | None = None,
@@ -199,7 +200,10 @@ class GuestbookRuntime:
         note: str | None = None,
         source: str = SOURCE_ACTION,
     ) -> Entry:
-        """Store a correction next to the decision; resident and delivery close an open visit."""
+        """Store a correction next to the decision; resident and delivery close an open visit.
+
+        Without an `entry_id` the latest entry is corrected.
+        """
         entry = self._entry(entry_id)
         guest_name = (clean_guest_name(guest_name) or None) if guest_name is not None else None
         if entry.kind is EntryKind.PENDING_RING:
@@ -272,7 +276,7 @@ class GuestbookRuntime:
         return entry
 
     @callback
-    def async_add_note(self, entry_id: str, note: str) -> Entry:
+    def async_add_note(self, entry_id: str | None, note: str) -> Entry:
         entry = self._entry(entry_id)
         entry.notes.append(note)
         self._store.async_put(entry)
@@ -283,7 +287,16 @@ class GuestbookRuntime:
     def async_get_entry(self, entry_id: str) -> Entry | None:
         return next((entry for entry in self._store.entries if entry.id == entry_id), None)
 
-    def _entry(self, entry_id: str) -> Entry:
+    @callback
+    def async_latest_entry(self) -> Entry | None:
+        """Return the entry that corrections without an entry id mean (see `latest_entry`)."""
+        return latest_entry(self._store.entries)
+
+    def _entry(self, entry_id: str | None) -> Entry:
+        if entry_id is None:
+            if (latest := self.async_latest_entry()) is not None:
+                return latest
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="no_latest_entry")
         if (entry := self.async_get_entry(entry_id)) is not None:
             return entry
         raise ServiceValidationError(
