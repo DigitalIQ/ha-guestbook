@@ -32,6 +32,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "correction": "Someone rang and came in. Was that you, a delivery or a visit?",
         "entry_id": "Entry id: {entry_id}",
         "correction_hint": "Answer with the action guestbook.correct_entry.",
+        "correction_ios_hint": "Press and hold to answer.",
         "resident": "That was me",
         "delivery": "Delivery",
         "visit": "Visit",
@@ -53,6 +54,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "correction": "Jemand hat geklingelt und ist hereingekommen. Warst du das, eine Lieferung oder ein Besuch?",
         "entry_id": "Eintrags-ID: {entry_id}",
         "correction_hint": "Antworte mit der Aktion guestbook.correct_entry.",
+        "correction_ios_hint": "Zum Antworten lange drücken.",
         "resident": "War ich",
         "delivery": "Lieferung",
         "visit": "Besuch",
@@ -77,8 +79,13 @@ def push_title(kind: PushKind, language: str) -> str:
     return _texts(language)[f"title_{kind.value}"]
 
 
-def push_message(kind: PushKind, language: str, guests: list[str], entry_id: str | None = None) -> str:
-    """Return the text of a push; with an `entry_id` (text-only targets) the id is appended."""
+def push_message(
+    kind: PushKind, language: str, guests: list[str], entry_id: str | None = None, *, ios_hint: bool = False
+) -> str:
+    """Return the text of a push; with an `entry_id` (text-only targets) the id is appended.
+
+    `ios_hint` adds "press and hold" to the correction question: iOS shows the buttons only on a long press.
+    """
     texts = _texts(language)
     if kind is PushKind.UNANSWERED_RING or kind is PushKind.CORRECTION:
         parts = [texts[kind.value]]
@@ -86,6 +93,8 @@ def push_message(kind: PushKind, language: str, guests: list[str], entry_id: str
         parts = [texts[kind.value].format(names=", ".join(guests))]
     else:
         parts = [texts[f"{kind.value}_unknown"]]
+    if ios_hint and kind is PushKind.CORRECTION:
+        parts.append(texts["correction_ios_hint"])
     if entry_id is not None:
         parts.append(texts["entry_id"].format(entry_id=entry_id))
         if kind is PushKind.CORRECTION:

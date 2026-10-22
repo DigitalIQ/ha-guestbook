@@ -41,6 +41,25 @@ def test_correction_text_only_mentions_the_action():
     assert "guestbook.correct_entry" in push_message(PushKind.CORRECTION, "de", [], entry_id="abc123")
 
 
+def test_correction_for_an_ios_phone_says_to_press_and_hold():
+    assert push_message(PushKind.CORRECTION, "en", [], ios_hint=True) == (
+        "Someone rang and came in. Was that you, a delivery or a visit? Press and hold to answer."
+    )
+    assert push_message(PushKind.CORRECTION, "de", [], ios_hint=True).endswith(" Zum Antworten lange drücken.")
+
+
+def test_the_ios_hint_is_for_the_correction_question_only():
+    assert push_message(PushKind.ARRIVAL, "en", ["Alex"], ios_hint=True) == "Arrived: Alex."
+    assert push_message(PushKind.UNANSWERED_RING, "en", [], ios_hint=True) == push_message(
+        PushKind.UNANSWERED_RING, "en", []
+    )
+
+
+def test_the_correction_question_has_no_hint_by_default():
+    assert "hold" not in push_message(PushKind.CORRECTION, "en", [])
+    assert "lange" not in push_message(PushKind.CORRECTION, "de", [])
+
+
 def test_correction_for_a_phone_has_no_action_hint():
     assert "guestbook.correct_entry" not in push_message(PushKind.CORRECTION, "en", [])
 

@@ -97,7 +97,8 @@
           "push_arrival": "Arrival",
           "push_end": "End of visit",
           "push_correction": "Correction question",
-          "push_unanswered_ring": "Unanswered ring"
+          "push_unanswered_ring": "Unanswered ring",
+          "push_open_path": "Open dashboard path"
         },
         "data_description": {
           "phones": "Phones with the Home Assistant Companion app. Only these get the buttons of the correction question.",
@@ -105,7 +106,8 @@
           "push_arrival": "Push when a visit starts and none of the residents is home.",
           "push_end": "Push when a visit ends and none of the residents is home.",
           "push_correction": "Ask for every uncertain visit what it was, also when a resident is home.",
-          "push_unanswered_ring": "Push when someone rang and nobody opened."
+          "push_unanswered_ring": "Push when someone rang and nobody opened.",
+          "push_open_path": "Dashboard path that opens when you tap a push on a Companion app phone, for example /besuch-log/besuch. Leave it empty to open the app as usual."
         }
       }
     }

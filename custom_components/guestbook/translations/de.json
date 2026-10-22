@@ -97,7 +97,8 @@
           "push_arrival": "Ankunft",
           "push_end": "Ende des Besuchs",
           "push_correction": "Korrekturfrage",
-          "push_unanswered_ring": "Unbeantwortetes Klingeln"
+          "push_unanswered_ring": "Unbeantwortetes Klingeln",
+          "push_open_path": "Dashboard-Pfad zum Öffnen"
         },
         "data_description": {
           "phones": "Handys mit der Home-Assistant-Companion-App. Nur sie bekommen die Schaltflächen der Korrekturfrage.",
@@ -105,7 +106,8 @@
           "push_arrival": "Push, wenn ein Besuch beginnt und kein Bewohner zu Hause ist.",
           "push_end": "Push, wenn ein Besuch endet und kein Bewohner zu Hause ist.",
           "push_correction": "Bei jedem unsicheren Besuch fragen, was es war, auch wenn ein Bewohner zu Hause ist.",
-          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat."
+          "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat.",
+          "push_open_path": "Dashboard-Pfad, der sich beim Tippen auf eine Push auf einem Companion-App-Handy öffnet, zum Beispiel /besuch-log/besuch. Leer lassen, damit die App wie gewohnt öffnet."
         }
       }
     }

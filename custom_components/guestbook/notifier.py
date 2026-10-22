@@ -18,6 +18,7 @@ from .const import (
     CONF_PUSH_ARRIVAL,
     CONF_PUSH_CORRECTION,
     CONF_PUSH_END,
+    CONF_PUSH_OPEN_PATH,
     CONF_PUSH_UNANSWERED_RING,
     CONF_RESIDENTS,
     PUSH_DEFAULTS,
@@ -111,14 +112,18 @@ class Notifier:
         guests = [guest["name"] for guest in entry.guests]
         title = push_title(kind, language)
         token = self._runtime.async_ask_question(entry) if kind is PushKind.CORRECTION else ""
+        open_path = str(options.get(CONF_PUSH_OPEN_PATH) or "").strip()
         for device_id in options.get(CONF_PHONES, []):
             if (phone := self._phone(device_id)) is None:
                 continue
             service, android = phone
-            payload: dict[str, Any] = {"title": title, "message": push_message(kind, language, guests)}
+            message = push_message(kind, language, guests, ios_hint=not android)
+            payload: dict[str, Any] = {"title": title, "message": message}
+            data: dict[str, Any] = {"url": open_path, "clickAction": open_path} if open_path else {}
             if kind is PushKind.CORRECTION:
-                actions = correction_actions(language, entry.id, token, android=android)
-                payload["data"] = {"tag": entry.id, "actions": actions}
+                data |= {"tag": entry.id, "actions": correction_actions(language, entry.id, token, android=android)}
+            if data:
+                payload["data"] = data
             self._call(service, payload)
         if entities := options.get(CONF_NOTIFY_ENTITIES, []):
             message = push_message(kind, language, guests, entry_id=entry.id)

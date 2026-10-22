@@ -30,6 +30,7 @@ from .const import (
     CONF_PUSH_ARRIVAL,
     CONF_PUSH_CORRECTION,
     CONF_PUSH_END,
+    CONF_PUSH_OPEN_PATH,
     CONF_PUSH_UNANSWERED_RING,
     CONF_QUIET_PERIOD,
     CONF_RESIDENT_SIGNALS,
@@ -113,6 +114,7 @@ PUSH_SCHEMA = probatio.Schema(
         probatio.Optional(
             CONF_PUSH_UNANSWERED_RING, default=PUSH_DEFAULTS[CONF_PUSH_UNANSWERED_RING]
         ): selector.BooleanSelector(),
+        probatio.Optional(CONF_PUSH_OPEN_PATH, default=""): selector.TextSelector(),
     }
 )
 

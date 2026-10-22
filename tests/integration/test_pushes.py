@@ -45,6 +45,7 @@ async def test_options_form_offers_the_push_targets_and_switches(hass: HomeAssis
         "push_end",
         "push_correction",
         "push_unanswered_ring",
+        "push_open_path",
     }
     keys = {str(key): key for key in schema}
     assert schema[keys["phones"]].config["integration"] == "mobile_app"
@@ -64,6 +65,7 @@ async def test_push_switches_default_to_arrival_end_correction_on_and_unanswered
         "push_end": True,
         "push_correction": True,
         "push_unanswered_ring": False,
+        "push_open_path": "",
     }
 
 

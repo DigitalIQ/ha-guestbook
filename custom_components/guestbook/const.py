@@ -20,6 +20,7 @@ CONF_PUSH_ARRIVAL = "push_arrival"
 CONF_PUSH_END = "push_end"
 CONF_PUSH_CORRECTION = "push_correction"
 CONF_PUSH_UNANSWERED_RING = "push_unanswered_ring"
+CONF_PUSH_OPEN_PATH = "push_open_path"
 PUSH_DEFAULTS = {
     CONF_PUSH_ARRIVAL: True,
     CONF_PUSH_END: True,
