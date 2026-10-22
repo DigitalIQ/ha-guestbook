@@ -125,7 +125,7 @@ class Reason:
 class Correction:
     kind: CorrectionKind
     time: datetime
-    source: str  # push | action
+    source: str  # push | action | button
     guest_name: str | None = None
     start: datetime | None = None
     end: datetime | None = None

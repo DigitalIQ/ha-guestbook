@@ -54,6 +54,8 @@ EXPORT_DIR = "guestbook"
 PURGE_INTERVAL = timedelta(days=1)
 SOURCE_ACTION = "action"
 SOURCE_PUSH = "push"
+SOURCE_BUTTON = "button"
+MAX_GUEST_NAME_INPUT = 64  # the maximum of the guest name text entity, the same as MAX_GUEST_NAME of the core
 QUESTION_TOKEN_BYTES = 8  # random bytes of the one-time token in a correction button (11 characters)
 
 STORAGE_KEY = "guestbook.entries"

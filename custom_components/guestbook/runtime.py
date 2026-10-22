@@ -25,6 +25,7 @@ from .const import (
     PURGE_INTERVAL,
     QUESTION_TOKEN_BYTES,
     SOURCE_ACTION,
+    SOURCE_BUTTON,
     SOURCE_PUSH,
 )
 from .core import (
@@ -64,6 +65,7 @@ class GuestbookRuntime:
         self._listeners: list[Callable[[], None]] = []
         self._change_listeners: list[Callable[[Change], None]] = []
         self._purge_listeners: list[Callable[[], None]] = []
+        self._guest_name = ""
 
     @callback
     def async_start(self) -> None:
@@ -232,6 +234,26 @@ class GuestbookRuntime:
             },
         )
         self._notify()
+        return entry
+
+    @property
+    def guest_name(self) -> str:
+        """The name typed into the guest name text entity; the visit button takes it."""
+        return self._guest_name
+
+    @callback
+    def async_set_guest_name(self, name: str) -> None:
+        self._guest_name = name
+        self._notify()
+
+    @callback
+    def async_press_button(self, kind: CorrectionKind) -> Entry:
+        """Correct the latest entry for a button. The visit button takes the guest name and clears it afterwards."""
+        is_visit = kind is CorrectionKind.VISIT
+        guest_name = (self._guest_name if is_visit else "") or None
+        entry = self.async_correct_entry(None, kind, guest_name=guest_name, source=SOURCE_BUTTON)
+        if is_visit:
+            self.async_set_guest_name("")
         return entry
 
     @callback

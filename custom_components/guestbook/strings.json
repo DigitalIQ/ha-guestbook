@@ -164,6 +164,28 @@
     "sensor": {
       "current_visit": {
         "name": "Current visit"
+      },
+      "latest_entry": {
+        "name": "Latest entry"
+      }
+    },
+    "text": {
+      "guest_name": {
+        "name": "Guest name"
+      }
+    },
+    "button": {
+      "resident": {
+        "name": "That was me"
+      },
+      "delivery": {
+        "name": "Delivery"
+      },
+      "unknown": {
+        "name": "Don't know"
+      },
+      "visit": {
+        "name": "Visit"
       }
     }
   },

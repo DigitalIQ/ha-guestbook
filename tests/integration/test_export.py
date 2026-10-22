@@ -93,3 +93,13 @@ async def test_export_leaves_out_pending_rings_and_the_rule_state(hass: HomeAssi
     (line,) = read_lines(result["path"])
     assert line["kind"] == "visit"
     assert "rule_state" not in line
+
+
+async def test_export_names_the_button_as_the_source_of_a_correction(hass: HomeAssistant, setup_guestbook, freezer):
+    await make_visit(hass, freezer)
+    await hass.services.async_call("button", "press", {"entity_id": "button.guestbook_that_was_me"}, blocking=True)
+
+    (line,) = read_lines((await export(hass))["path"])
+
+    assert line["correction"]["kind"] == "resident"
+    assert line["correction"]["source"] == "button"
