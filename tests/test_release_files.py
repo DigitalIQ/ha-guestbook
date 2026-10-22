@@ -77,3 +77,10 @@ def test_every_action_in_services_yaml_has_texts():
     strings = json.loads((COMPONENT / "strings.json").read_text())["services"]
 
     assert set(names) == set(strings)
+
+
+def test_changelog_starts_with_the_version_of_the_manifest():
+    version = json.loads((COMPONENT / "manifest.json").read_text())["version"]
+    headings = re.findall(r"^## (\S+)$", (ROOT / "CHANGELOG.md").read_text(), flags=re.M)
+
+    assert headings[0] == version

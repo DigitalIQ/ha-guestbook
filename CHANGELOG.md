@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2
+
+Correct entries from the Home Assistant UI.
+
+- `guestbook.correct_entry` and `guestbook.add_note` work without `entry_id`. They then act on the latest entry: the most recent visit or unanswered ring, open or closed. Without such an entry they raise a translated error.
+- New sensor "Latest entry" (`sensor.guestbook_latest_entry`) that shows which entry that is.
+- New text entity "Guest name" and four buttons "That was me", "Delivery", "Don't know" and "Visit". A press corrects the latest entry with the correction source `button`. "Visit" uses the guest name and clears it after a successful press.
+- New push option "Open dashboard path": a tap on a push to a Companion app phone opens that dashboard (`url` for iOS, `clickAction` for Android).
+- The correction question on iOS ends with "Press and hold to answer.", because iOS shows the buttons only on a long press.
+- The README has an example dashboard with the buttons.
+
 ## 0.1.1
 
 Fixes from a code review.

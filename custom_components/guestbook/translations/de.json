@@ -107,7 +107,7 @@
           "push_end": "Push, wenn ein Besuch endet und kein Bewohner zu Hause ist.",
           "push_correction": "Bei jedem unsicheren Besuch fragen, was es war, auch wenn ein Bewohner zu Hause ist.",
           "push_unanswered_ring": "Push, wenn jemand geklingelt hat und niemand geöffnet hat.",
-          "push_open_path": "Dashboard-Pfad, der sich beim Tippen auf eine Push auf einem Companion-App-Handy öffnet, zum Beispiel /besuch-log/besuch. Leer lassen, damit die App wie gewohnt öffnet."
+          "push_open_path": "Dashboard-Pfad, der sich beim Tippen auf eine Push auf einem Companion-App-Handy öffnet, zum Beispiel /guestbook-dashboard/visits. Leer lassen, damit die App wie gewohnt öffnet."
         }
       }
     }

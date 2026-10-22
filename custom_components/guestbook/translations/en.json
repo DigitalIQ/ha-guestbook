@@ -107,7 +107,7 @@
           "push_end": "Push when a visit ends and none of the residents is home.",
           "push_correction": "Ask for every uncertain visit what it was, also when a resident is home.",
           "push_unanswered_ring": "Push when someone rang and nobody opened.",
-          "push_open_path": "Dashboard path that opens when you tap a push on a Companion app phone, for example /besuch-log/besuch. Leave it empty to open the app as usual."
+          "push_open_path": "Dashboard path that opens when you tap a push on a Companion app phone, for example /guestbook-dashboard/visits. Leave it empty to open the app as usual."
         }
       }
     }

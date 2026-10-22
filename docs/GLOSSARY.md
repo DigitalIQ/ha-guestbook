@@ -19,5 +19,6 @@ Terms used in code, tests, tickets and the UI. Use these words, not synonyms.
 | **Decision** | What the rule core concluded for an entry: `visit`, `unanswered_ring`, `resident_arrival`. |
 | **Reason** | A short machine-readable code plus readable text that says which rule fired, e.g. `ring_then_door`. |
 | **Correction** | A user answer that overrides the decision: `resident`, `delivery`, `visit` (with guest name), `unknown`. Stored next to the decision, never replacing it. |
+| **Latest entry** | The entry with the most recent start whose decision is `visit` or `unanswered_ring`, open or closed. The default target of `correct_entry`, `add_note` and the correction buttons. |
 | **Rule core** | The pure Python part that turns signals and settings into entries. Has no Home Assistant imports. |
 | **Settings** | The adjustable numbers of the rule core (windows, quiet time, max duration, retention). |

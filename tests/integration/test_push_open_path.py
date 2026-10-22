@@ -21,7 +21,7 @@ from .conftest import (
 )
 
 COMPONENT = Path(__file__).parents[2] / "custom_components" / "guestbook"
-PATH = "/besuch-log/besuch"
+PATH = "/guestbook-dashboard/visits"
 MESSENGER = "notify.family_messenger"
 
 

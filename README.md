@@ -90,6 +90,9 @@ Push options:
 | End of visit | on |
 | Correction question | on |
 | Unanswered ring | off |
+| Open dashboard path | empty |
+
+**Open dashboard path**: a path inside Home Assistant, for example `/lovelace/guestbook`. When it is set, every push to a Companion app phone opens that dashboard when you tap it (Guestbook sends `url` for iOS and `clickAction` for Android). Text-only targets do not get it.
 
 ## How visits are detected
 
@@ -116,6 +119,9 @@ With the default names, Guestbook creates these entities. Your entity ids may di
 | `binary_sensor.guestbook_visit_active` | On while any visit is open. |
 | `sensor.guestbook_current_visit` | The guests of the current visit, or "Unknown guest" ("Unbekannter Gast" in German) when nobody is known. Unknown while no visit is open. Attributes: `entry_id`, `start`, `certainty`. Attributes stay small on purpose, so the recorder keeps storing them. |
 | `binary_sensor.<guest>_visiting` | One per guest, on while that guest is visiting. It goes off when all the guest's phones have been away for the phone grace period, even if the visit goes on with another guest. |
+| `sensor.guestbook_latest_entry` | The entry that the buttons and the actions without `entry_id` would change: the title as in the calendar (for example "Visit (uncertain)"). Attributes: `entry_id`, `start`, `end` (empty while the visit is open), `kind` (what the entry counts as now, after your correction) and `corrected` (`true` when you corrected it). Unknown while there is no entry. |
+| `text.guestbook_guest_name` | The name the "Visit" button uses. Up to 64 characters, empty by default, kept across restarts. |
+| `button.guestbook_that_was_me`, `button.guestbook_delivery`, `button.guestbook_don_t_know`, `button.guestbook_visit` | "That was me", "Delivery", "Don't know" and "Visit" ("War ich", "Lieferung", "Weiß nicht", "Besuch" in German). Each press corrects the latest entry. See [Correct from the dashboard](#correct-from-the-dashboard). |
 | `calendar.guestbook_visits` | One event per visit. |
 | `calendar.guestbook_rings` | Unanswered rings and entries you corrected to a delivery. |
 
@@ -152,9 +158,9 @@ All times are ISO strings in UTC. `guests` is a list of names.
 | Action | Fields | What it does |
 | --- | --- | --- |
 | `guestbook.resident_unlock` | `source` (optional text) | Reports that a resident is arriving, so a ring close to it is not a visit. |
-| `guestbook.correct_entry` | `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note` | Tells Guestbook what an entry really was. Returns the corrected entry when called with a response. |
+| `guestbook.correct_entry` | optional `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note` | Tells Guestbook what an entry really was. Without `entry_id` it corrects the latest entry. Returns the corrected entry when called with a response. |
 | `guestbook.add_visit` | `guests` (a name or a list of names, none of them empty), `start`, `end`, optional `note` | Logs a visit the sensors missed. |
-| `guestbook.add_note` | `entry_id`, `note` | Adds a free-text note to an entry. |
+| `guestbook.add_note` | optional `entry_id`, `note` | Adds a free-text note to an entry. Without `entry_id` it notes the latest entry. |
 | `guestbook.export` | optional `start`, `end` | Writes the entries to a JSONL file. Returns `path` and `count`. |
 
 About corrections:
@@ -167,7 +173,60 @@ About corrections:
 - `start` and `end` replace the times shown in the calendar. They do not stop an open visit.
 - A ring that is still inside its ring window cannot be corrected yet.
 
-You find the `entry_id` in the attributes of `sensor.guestbook_current_visit`, in the bus events, and in the push texts.
+You find the `entry_id` in the attributes of `sensor.guestbook_latest_entry` and `sensor.guestbook_current_visit`, in the bus events, and in the push texts.
+
+The latest entry is the entry with the most recent start that is a visit or an unanswered ring, open or closed. Rings that still wait for their ring window and resident arrivals are never chosen. An entry that you corrected stays the latest one, so you can correct it again. When there is no such entry, the action stops with an error.
+
+## Correct from the dashboard
+
+The correction question on your phone needs the push. The buttons work from any dashboard, also when you are at home or missed the push. `sensor.guestbook_latest_entry` shows which entry a press will change.
+
+```yaml
+type: vertical-stack
+cards:
+  - type: entities
+    entities:
+      - entity: sensor.guestbook_latest_entry
+      - entity: text.guestbook_guest_name
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: button.guestbook_that_was_me
+        name: That was me
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.guestbook_that_was_me
+      - type: button
+        entity: button.guestbook_delivery
+        name: Delivery
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.guestbook_delivery
+      - type: button
+        entity: button.guestbook_don_t_know
+        name: Don't know
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.guestbook_don_t_know
+      - type: button
+        entity: button.guestbook_visit
+        name: Visit
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.guestbook_visit
+```
+
+To name a guest, type the name into the text field first and press "Visit". Without a name, "Visit" makes a visit without a name. After a successful press the text field is cleared. If there is nothing to correct, the press fails with an error message. Corrections made with a button are stored with the source `button`.
+
+To open this dashboard from a push, put its path (for example `/lovelace/guestbook`) into **Configure > Pushes > Open dashboard path**.
 
 ## Pushes and the correction question
 
@@ -183,6 +242,8 @@ The pushes:
 - **Unanswered ring** is off by default.
 
 Android shows at most three buttons in a notification, so Android phones get "That was me", "Delivery" and "Visit" and no "Don't know".
+
+iOS shows the buttons of a notification only after you press and hold it. The correction question on iOS therefore ends with "Press and hold to answer." ("Zum Antworten lange drücken." in German). Android shows the buttons directly and gets no hint. With **Open dashboard path** set, a tap on any push opens your dashboard, where the buttons above work without a long press.
 
 Text-only targets cannot have buttons. Their message ends with `Entry id: <id>`. Answer with the action `guestbook.correct_entry` and that id.
 

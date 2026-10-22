@@ -101,7 +101,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Corrections and additions
 
-54. As a user, I want the action `guestbook.correct_entry` with the entry id, the kind (`resident`, `delivery`, `visit`, `unknown`), an optional guest name, optional start and end, and an optional note, so that I can fix any entry.
+54. As a user, I want the action `guestbook.correct_entry` with the entry id (optional, see story 69), the kind (`resident`, `delivery`, `visit`, `unknown`), an optional guest name, optional start and end, and an optional note, so that I can fix any entry.
 55. As a user, I want a visit corrected to `resident` to disappear from the visits calendar but stay in the storage and the export, so that the calendar is right and the tuning data is complete.
 56. As a user, I want a visit corrected to `delivery` to move to the rings calendar, so that deliveries are shown where they belong.
 57. As a user, I want an unanswered ring corrected to `visit` to move to the visits calendar, so that missed visits can be repaired.
@@ -126,6 +126,16 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 68. As a user switching from a home-made automation, I want to run Guestbook in parallel with it, so that I can compare both before switching off the old one.
 
+### Correcting from the Home Assistant UI
+
+69. As a user, I want `guestbook.correct_entry` and `guestbook.add_note` to work without an entry id and then act on the latest entry, so that I never have to look up an id.
+70. As a user, I want a sensor "Latest entry" that shows the title of that entry with its id, times, effective kind and whether it was corrected, so that I see what a correction will change.
+71. As a user, I want the buttons "That was me", "Delivery", "Visit" and "Don't know" in Home Assistant, so that I can correct the latest entry from any dashboard.
+72. As a user, I want a text field "Guest name" that the "Visit" button uses and then clears, and that keeps its value across restarts, so that I can name the guest before I press.
+73. As a user, I want a clear error when there is no entry to correct, so that a press never fails silently.
+74. As an iPhone user, I want the correction question to tell me to press and hold, since iOS shows the buttons only on a long press, so that I find the answer buttons.
+75. As a user of a Companion app phone, I want a tap on a push to open my Guestbook dashboard (option "Open dashboard path"), so that I can answer without searching for the dashboard.
+
 ## Implementation Decisions
 
 ### Modules
@@ -137,7 +147,9 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - **Description renderer**: turns an entry into the readable chronological log in the Home Assistant language (de or en). Condenses presence on/off pairs per sensor into one line with a time range.
 - **Sensors**: `binary_sensor` visit active, `sensor` current visit, one `binary_sensor` per guest. Attributes only small scalars and ids, never the log.
 - **Events**: `guestbook_visit_started`, `guestbook_visit_event`, `guestbook_visit_ended`, `guestbook_visit_corrected`. Payload: `entry_id`, `guests` (names), `certainty`, timestamps, and for `guestbook_visit_event` the signal kind and source entity id.
-- **Notifier**: sends pushes. Companion app phones are selected as `mobile_app` devices and called through the legacy `notify.mobile_app_<device>` action, because only that action accepts `data.actions` (buttons). Text-only targets are `notify` entities called with `notify.send_message`, which has no `data`. Listens to `mobile_app_notification_action` and maps the action id (which contains the entry id) to a correction. The "Visit" button uses `behavior: textInput`; the reply text is the guest name. The phone's OS comes from the mobile_app device; on Android the "Don't know" button is left out (three-button limit).
+- **Notifier**: sends pushes. Companion app phones are selected as `mobile_app` devices and called through the legacy `notify.mobile_app_<device>` action, because only that action accepts `data.actions` (buttons). Text-only targets are `notify` entities called with `notify.send_message`, which has no `data`. Listens to `mobile_app_notification_action` and maps the action id (which contains the entry id) to a correction. The "Visit" button uses `behavior: textInput`; the reply text is the guest name. The phone's OS comes from the mobile_app device; on Android the "Don't know" button is left out (three-button limit). On iOS the question text ends with a hint to press and hold, because iOS shows action buttons only on a long press. The option `push_open_path` (empty by default) adds `url` (iOS) and `clickAction` (Android) to every phone push, so a tap opens that dashboard path.
+- **Latest entry**: the entry that corrections without an entry id, the buttons and the Latest entry sensor mean. It is the entry with the most recent start whose stored decision is `visit` or `unanswered_ring`, open or closed. Pending rings and resident arrivals are never chosen, by decision: a pending ring cannot be corrected yet, and a resident arrival is not something the user wants to correct by accident. The stored decision and start count, not the correction, so a corrected entry stays selected and can be corrected again. The selection is a pure function in the rule core. With no such entry the actions and buttons raise a translated error.
+- **Correction entities**: `sensor` Latest entry (state: the rendered title, cut below 255 characters; attributes `entry_id`, `start`, `end`, `kind`, `corrected`), `text` Guest name (max 64, restored after a restart, empty by default) and four `button` entities that correct the latest entry with the correction source `button`. The Visit button takes the guest name from the text entity (empty: a visit without a name) and clears it after a successful press.
 - **Actions**: `guestbook.resident_unlock`, `guestbook.correct_entry`, `guestbook.add_visit`, `guestbook.add_note`, `guestbook.export`. All with a `services.yaml` description and translations.
 - **Config flow**: one config entry per Home Assistant instance (`single_config_entry`). Sources and residents in the setup form; sources, residents, settings, push targets and push switches in the options flow.
 - **Guests as config subentries** of type `guest`, with a `user` and a `reconfigure` step. Fields: name and a list of `device_tracker` entities.
@@ -161,7 +173,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Data shape of an entry
 
-`id`, `kind` (the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival`, and `pending_ring` while a ring waits for its window to end), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `reason` (`code`, `detail`; why the entry got its kind), `end_reason` (`code`, `detail`; why a visit ended), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push` or `action`), `notes`, `settings` snapshot. The storage also keeps `rule_state`, private bookkeeping of the rule core. The export writes this shape, one entry per line, without `rule_state` and without pending rings.
+`id`, `kind` (the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival`, and `pending_ring` while a ring waits for its window to end), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `reason` (`code`, `detail`; why the entry got its kind), `end_reason` (`code`, `detail`; why a visit ended), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push`, `action` or `button`), `notes`, `settings` snapshot. The storage also keeps `rule_state`, private bookkeeping of the rule core. The export writes this shape, one entry per line, without `rule_state` and without pending rings.
 
 ### Platform
 
