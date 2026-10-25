@@ -63,6 +63,28 @@ Guests are added on the Guestbook entry page (**Settings > Devices & services > 
 
 If you correct a visit and name a guest that does not exist yet, Guestbook raises a repair that offers to create the guest. The phones that were home during that visit and belong to nobody are preselected, so linking the right phone is one click. A device that is always home, such as a TV, is preselected too. Remove it in the form.
 
+### Apple Watch or iPhone as resident signal
+
+A resident phone that joins the Wi-Fi is a good resident signal, but it fails when the phone stays at home. A watch on your wrist comes home with you. Home Assistant can track an Apple Watch or iPhone over Bluetooth with the core integration [Private BLE Device](https://www.home-assistant.io/integrations/private_ble_device/), and Guestbook can use that tracker as a resident signal without any extra code.
+
+What you need:
+
+- Bluetooth in Home Assistant that reaches your front door: a Bluetooth adapter or an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html) near the entrance.
+- The watch's Identity Resolving Key (IRK). Apple devices change their Bluetooth address about every 15 minutes; the IRK lets Home Assistant recognise them anyway.
+
+Steps:
+
+1. **Get the IRK.** On a Mac signed in to the same iCloud account, open Keychain Access and look up the watch's Bluetooth record, as described in the [Private BLE Device docs](https://www.home-assistant.io/integrations/private_ble_device/#getting-your-identity-resolving-key-irk). Without a Mac, an ESP32 running an ESPHome IRK capture component can read the key when you pair the watch with it (for example the [packages by Derek Seaman](https://github.com/DerekSeaman), MIT).
+2. **Add Private BLE Device** under **Settings > Devices & services > Add integration** and paste the IRK. The watch must be switched on and in range. Home Assistant creates a `device_tracker` that is `home` while a Bluetooth scanner hears the watch.
+3. **Select the tracker as a resident signal** in the Guestbook options (**Configure > Residents**). Guestbook counts it when it changes to `home`.
+
+Good to know:
+
+- The tracker turns `home` on the first advertisement it hears, so your arrival counts within seconds. It turns `not_home` only when Home Assistant has not heard the watch for a while (up to about 15 minutes by default). If you leave and come back within that time, there is no new change to `home`, and the ring counts as a visit. Correct it with the **That was me** button.
+- Range matters. If the watch is heard from inside the home all the time, it never changes to `home` on arrival. Place the scanner so that it covers the entrance, not the whole home.
+- Only residents can do this. A guest's iPhone cannot be recognised over Bluetooth, because Guestbook would need that guest's IRK. Guests are recognised by their phone in the Wi-Fi.
+- Room-level trackers such as Bermuda or NeonPlan 3D report a room name, not `home`. To use one, create a template binary sensor that is `on` while the tracker reports your entrance area, and select that as the resident signal. Be careful: a resident who is already home and walks to the door to let a guest in would then turn a real visit into a resident arrival.
+
 ### Options
 
 Open the Guestbook entry and choose **Configure**. The menu has four parts, and each part saves on its own and applies at once. Stored entries and open visits are kept.
