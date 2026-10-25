@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+Review fixes ahead of the HACS submission.
+
+- The push no longer reads the config entry of the Companion app. The notify service name and the platform (Apple means iOS, anything else Android) come from the device registry only.
+- `guestbook.export` can only be called by admin users.
+- The test requirements pin `ruff`, and a test pins the recorder history call.
+
 ## 0.1.2
 
 Correct entries from the Home Assistant UI.
