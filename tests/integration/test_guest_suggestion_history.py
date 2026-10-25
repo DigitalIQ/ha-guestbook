@@ -6,9 +6,11 @@ import pytest
 from homeassistant.components.repairs import DOMAIN as REPAIRS_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done
 
 from custom_components.guestbook.const import DOMAIN
+from custom_components.guestbook.repairs import _async_home_during
 
 from .conftest import DOOR, advance, ring
 
@@ -45,3 +47,18 @@ async def test_preselection_uses_the_recorder_history_of_the_visit(hass: HomeAss
 
     (key,) = result["data_schema"].schema
     assert key.description["suggested_value"] == [ROBIN_PHONE]
+
+
+async def test_the_recorder_history_call_works_with_this_home_assistant_version(hass: HomeAssistant, freezer):
+    """Pins the call to `get_significant_states`: no fallback here, so a core change that breaks it fails the test."""
+    start = dt_util.utcnow()
+    hass.states.async_set(ROBIN_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=10))
+    hass.states.async_set(ROBIN_PHONE, "home")
+    hass.states.async_set(NEIGHBOUR_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(minutes=10))
+    await async_wait_recording_done(hass)
+
+    home = await _async_home_during(hass, [ROBIN_PHONE, NEIGHBOUR_PHONE], start, None)
+
+    assert home == {ROBIN_PHONE}
