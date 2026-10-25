@@ -5,7 +5,7 @@ from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
-from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events, async_mock_service
 
 from custom_components.guestbook.const import CONF_RESIDENTS
 from custom_components.guestbook.core import CorrectionKind, EffectiveKind
@@ -248,6 +248,20 @@ async def test_a_selected_device_that_is_no_longer_a_phone_is_skipped(hass: Home
     await start_guest_visit(hass, setup_guestbook)
 
     assert messenger == []
+
+
+async def test_a_device_of_another_integration_is_skipped(hass: HomeAssistant, setup_guestbook):
+    other = MockConfigEntry(domain="other")
+    other.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=other.entry_id, identifiers={("other", "x")}, name="Pixel of Alex"
+    )
+    await set_options(hass, setup_guestbook, phones=[device.id])
+    calls = async_mock_service(hass, "notify", PIXEL_SERVICE)
+
+    await start_guest_visit(hass, setup_guestbook)
+
+    assert calls == []
 
 
 async def test_a_renamed_phone_device_still_finds_its_notify_service(hass: HomeAssistant, setup_guestbook):

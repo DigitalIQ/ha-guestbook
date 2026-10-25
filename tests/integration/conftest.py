@@ -158,13 +158,14 @@ async def add_phone(hass: HomeAssistant, device_name: str = "Pixel of Alex", os_
     mobile_app = MockConfigEntry(
         domain="mobile_app",
         title=device_name,
-        data={"device_name": device_name, "os_name": os_name, "webhook_id": device_name.casefold()},
+        data={"webhook_id": device_name.casefold()},
     )
     mobile_app.add_to_hass(hass)
     device = dr.async_get(hass).async_get_or_create(
         config_entry_id=mobile_app.entry_id,
         identifiers={("mobile_app", device_name.casefold())},
         name=device_name,
+        manufacturer="Apple" if os_name == "iOS" else "Google",
     )
     return device.id
 

@@ -41,6 +41,7 @@ from .runtime import GuestbookRuntime
 _LOGGER = logging.getLogger(__name__)
 
 MOBILE_APP = "mobile_app"
+APPLE = "Apple"
 EVENT_NOTIFICATION_ACTION = "mobile_app_notification_action"
 SWITCHES = {
     PushKind.ARRIVAL: CONF_PUSH_ARRIVAL,
@@ -135,19 +136,20 @@ class Notifier:
         )
 
     def _phone(self, device_id: str) -> tuple[str, bool] | None:
-        """Return the legacy notify service of a Companion app device and whether it runs Android."""
+        """Return the legacy notify service of a Companion app device and whether it runs Android.
+
+        Everything comes from the device registry: the service name from the original device name, the platform from
+        the manufacturer (Apple means iOS, anything else Android).
+        """
         device = dr.async_get(self._hass).async_get(device_id)
-        mobile_app = self._hass.config_entries.async_get_entry(device.config_entry_id) if device else None
-        if mobile_app is not None and mobile_app.domain != MOBILE_APP:
-            mobile_app = None
-        if device is None or mobile_app is None:
+        if device is None or not any(domain == MOBILE_APP for domain, _ in device.identifiers):
             _LOGGER.debug("Skipping device %s: it is not a Companion app phone", device_id)
             return None
-        service = f"{MOBILE_APP}_{slugify(mobile_app.data.get('device_name') or device.name or '')}"
+        service = f"{MOBILE_APP}_{slugify(device.name or '')}"
         if not self._hass.services.has_service("notify", service):
             _LOGGER.debug("Skipping %s: the service notify.%s does not exist", device.name, service)
             return None
-        return service, str(mobile_app.data.get("os_name", "")).casefold() == "android"
+        return service, device.manufacturer != APPLE
 
     @callback
     def _call(self, service: str, data: dict[str, Any]) -> None:
