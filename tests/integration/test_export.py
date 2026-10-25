@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import Unauthorized
 
 from custom_components.guestbook.const import DOMAIN
 from custom_components.guestbook.core import EffectiveKind
@@ -17,6 +18,17 @@ def hass_config_dir(hass_tmp_config_dir: str) -> str:
 
 async def export(hass: HomeAssistant, **data) -> dict:
     return await hass.services.async_call(DOMAIN, "export", data, blocking=True, return_response=True)
+
+
+async def test_export_is_refused_for_a_user_who_is_not_an_admin(
+    hass: HomeAssistant, setup_guestbook, hass_read_only_user, hass_config_dir
+):
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            DOMAIN, "export", {}, blocking=True, return_response=True, context=Context(user_id=hass_read_only_user.id)
+        )
+
+    assert not Path(hass_config_dir, "guestbook").exists()
 
 
 def read_lines(path: str) -> list[dict]:

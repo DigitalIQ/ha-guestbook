@@ -9,6 +9,7 @@ import probatio
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -133,6 +134,6 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(DOMAIN, SERVICE_ADD_VISIT, add_visit, schema=ADD_VISIT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_ADD_NOTE, add_note, schema=ADD_NOTE_SCHEMA)
-    hass.services.async_register(
-        DOMAIN, SERVICE_EXPORT, export, schema=EXPORT_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    async_register_admin_service(
+        hass, DOMAIN, SERVICE_EXPORT, export, schema=EXPORT_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )

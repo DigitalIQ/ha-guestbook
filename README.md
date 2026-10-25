@@ -183,7 +183,7 @@ All times are ISO strings in UTC. `guests` is a list of names.
 | `guestbook.correct_entry` | optional `entry_id`, `kind` (`resident`, `delivery`, `visit`, `unknown`), optional `guest_name`, `start`, `end`, `note` | Tells Guestbook what an entry really was. Without `entry_id` it corrects the latest entry. Returns the corrected entry when called with a response. |
 | `guestbook.add_visit` | `guests` (a name or a list of names, none of them empty), `start`, `end`, optional `note` | Logs a visit the sensors missed. |
 | `guestbook.add_note` | optional `entry_id`, `note` | Adds a free-text note to an entry. Without `entry_id` it notes the latest entry. |
-| `guestbook.export` | optional `start`, `end` | Writes the entries to a JSONL file. Returns `path` and `count`. |
+| `guestbook.export` | optional `start`, `end` | Writes the entries to a JSONL file. Returns `path` and `count`. Admin users only. |
 
 About corrections:
 
