@@ -366,6 +366,10 @@ python3.14 -m venv .venv
 
 The rule core in `custom_components/guestbook/core/` is pure Python without Home Assistant imports. See `docs/spec.md` and `docs/architecture.md` for the design.
 
+## Support
+
+If Guestbook is useful to you, you can [buy me a coffee](https://buymeacoffee.com/manuel_8472). Guestbook stays free either way.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
