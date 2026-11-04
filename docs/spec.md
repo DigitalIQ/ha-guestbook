@@ -213,7 +213,6 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - Detection of a specific lock's fingerprint reader. Guestbook offers the generic resident signal input; how a specific lock produces it is the user's setup.
 - Unknown phones as visit triggers. Only phones linked to a guest start visits.
 - Cloud sync, telemetry, multi-home setups.
-- Editing events in the calendar UI. Changes go through the actions and the correction push.
 - Submission to the HACS default list. First release is a custom repository.
 
 ## Further Notes
