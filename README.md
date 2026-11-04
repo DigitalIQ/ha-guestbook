@@ -263,7 +263,7 @@ Select the targets in **Configure > Pushes**:
 The pushes:
 
 - **Arrival** and **end of visit** are sent only when none of the selected residents is home. With no residents selected they are always sent.
-- **Correction question** is sent for every uncertain visit, also when you are home, so the data gets corrected. It has the buttons "That was me", "Delivery", "Visit" and "Don't know". "Visit" opens a text field for the guest's name. Your answer is saved as a correction at once. Each question carries a random one-time token in its button ids. An answer counts only with the token of the pending question and only once, so no other device can reclassify an entry by guessing an entry id. The token is stored with the entry and never exported. The action `guestbook.correct_entry` needs no token.
+- **Correction question** is sent for every uncertain visit, also when you are home, so the data gets corrected. It has the buttons "That was me", "Delivery", "Visit" and "Don't know". "Visit" opens a text field for the guest's name. Your answer is saved as a correction at once. Each question carries a random one-time token in its button ids. An answer counts only with the token of the pending question and only once, so no other device can reclassify an entry by guessing an entry id. The token is stored with the entry and never exported. The action `guestbook.correct_entry` needs no token. When a guest phone joins the visit, the question expires: the phone already answered it, and a late tap on the old push changes nothing.
 - **Unanswered ring** is off by default.
 
 Android shows at most three buttons in a notification, so Android phones get "That was me", "Delivery" and "Visit" and no "Don't know".

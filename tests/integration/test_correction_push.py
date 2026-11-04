@@ -333,3 +333,21 @@ async def test_a_second_ring_during_an_uncertain_visit_joins_it_without_a_second
 
     assert await calendar_uids(hass, "calendar.guestbook_visits") == [entry_id]
     assert len(calls) == 1
+
+
+async def test_a_late_answer_does_not_hide_a_visit_a_guest_phone_made_certain(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
+    entry_id = await start_uncertain_visit(hass)
+    that_was_me = action(setup_guestbook, "RESIDENT", entry_id)
+    await set_tracker(hass, ALEX_PHONE, "home")
+    await advance(hass, freezer, timedelta(hours=2))
+    await set_tracker(hass, ALEX_PHONE, "not_home")
+    await advance(hass, freezer, timedelta(hours=3))
+
+    await answer(hass, that_was_me)
+
+    entry = _entry(setup_guestbook, entry_id)
+    assert entry.correction is None
+    assert await calendar_uids(hass, "calendar.guestbook_visits") == [entry_id]

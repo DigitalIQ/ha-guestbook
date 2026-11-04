@@ -170,6 +170,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - A certain visit ends when all its guest phones have left. A guest phone joining an open uncertain visit makes it certain; its later end follows the phone rule.
 - A guest phone joining while a certain visit is open adds the guest to that visit.
 - Pushes "arrival" and "end" only when no selected resident `person` is `home`.
+- The correction question of an uncertain visit expires when a guest phone makes the visit certain. A later answer to that push is ignored; `guestbook.correct_entry` and the buttons still work.
 
 ### Data shape of an entry
 

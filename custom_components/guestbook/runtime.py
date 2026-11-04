@@ -29,6 +29,7 @@ from .const import (
     SOURCE_PUSH,
 )
 from .core import (
+    Certainty,
     Change,
     ChangeKind,
     Correction,
@@ -338,6 +339,9 @@ class GuestbookRuntime:
     @callback
     def _apply(self, changes: list[Change]) -> None:
         for change in changes:
+            if change.entry.certainty is Certainty.CERTAIN:
+                # A guest phone answered the question; a late tap on the old push must not overrule it.
+                change.entry.question_token = None
             if change.kind is ChangeKind.CLOSED and change.entry.kind is EntryKind.PENDING_RING:
                 self._store.async_remove(change.entry.id)
             else:
