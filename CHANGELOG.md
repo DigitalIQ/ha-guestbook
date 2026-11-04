@@ -7,6 +7,7 @@ Guestbook is in the default HACS catalog.
 - The README installs through the HACS search first, with a My Home Assistant button. The custom repository is the fallback.
 - Questions and ideas go to GitHub Discussions, bugs to issues.
 - CI actions updated (hassfest, setup-python).
+- A ring plus a door opening or presence while an uncertain visit is open joins that visit. Before, it started a second, overlapping uncertain visit with its own correction question.
 
 ## 0.1.3
 

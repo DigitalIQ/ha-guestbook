@@ -22,6 +22,7 @@ from .models import (
 )
 
 DEADLINE = "deadline"
+JOINED = "joined"  # key in Entry.rule_state: times at which a ring joined an open uncertain visit
 UNANSWERED_RING_LENGTH = timedelta(minutes=1)  # calendar length of the short event
 MAX_SIGNALS = 1000  # signals kept per entry; an open visit must not grow without bound
 RING_WAKE_UP_DELAY = timedelta(seconds=1)  # a timer for a ring window waits this long so signals at the end arrive
@@ -269,14 +270,21 @@ class Engine:
         visit.dropped_signals += dropped
 
     def _end_candidate(self, visit: Entry) -> Signal | None:
-        """The last door opening after the guest came in; the visit ends there if the door stays quiet."""
+        """The last door opening after the guest came in; the visit ends there if the door stays quiet.
+
+        Door openings within the entry grace after a guest came in (at the start or by a ring that joined) do not count.
+        """
         entered = next((s for s in visit.signals if s.kind is not SignalKind.RING), None)
         if entered is None:
             return None
+        grace = self._settings.entry_grace
+        arrivals = [entered.time, *(datetime.fromisoformat(t) for t in visit.rule_state.get(JOINED, ()))]
         openings = [
             s
             for s in visit.signals
-            if s.kind is SignalKind.DOOR_OPEN and s.time >= entered.time + self._settings.entry_grace
+            if s.kind is SignalKind.DOOR_OPEN
+            and s.time >= entered.time
+            and not any(arrival <= s.time < arrival + grace for arrival in arrivals)
         ]
         return max(openings, key=lambda s: s.time, default=None)
 
@@ -375,7 +383,11 @@ class Engine:
         if visit.reason.code not in {r.code for r in RING_THEN.values()}:
             return False
         window = self._settings.ring_window
-        return any(s.kind is SignalKind.RING and s.time <= now < s.time + window for s in visit.signals)
+        entered = next((s for s in visit.signals if s.kind is not SignalKind.RING), None)
+        starting_rings = [
+            s for s in visit.signals if s.kind is SignalKind.RING and (entered is None or s.time <= entered.time)
+        ]
+        return any(s.time <= now < s.time + window for s in starting_rings)
 
     def _resident_arrival(self, entry: Entry, end: datetime, signal: Signal) -> Change:
         previous = replace(entry)
@@ -404,8 +416,8 @@ class Engine:
         pending = sorted((e for e in self._active.values() if e.kind is EntryKind.PENDING_RING), key=lambda e: e.start)
         if not pending:
             return []
-        if certain := next((e for e in self._active.values() if e.certainty is Certainty.CERTAIN), None):
-            return self._join_certain_visit(certain, pending, signal)
+        if (open_visit := self._open_visit_to_join()) is not None:
+            return self._join_open_visit(open_visit, pending, signal)
         visit, *others = pending
         changes = []
         for other in others:
@@ -423,7 +435,12 @@ class Engine:
         changes.append(Change(ChangeKind.CLASSIFIED, visit, signal))
         return changes
 
-    def _join_certain_visit(self, visit: Entry, pending: list[Entry], signal: Signal) -> list[Change]:
+    def _open_visit_to_join(self) -> Entry | None:
+        """The open visit that a ring plus a door opening or presence joins: a certain one first, else the oldest."""
+        visits = sorted((e for e in self._active.values() if e.kind is EntryKind.VISIT), key=lambda e: e.start)
+        return next((v for v in visits if v.certainty is Certainty.CERTAIN), None) or next(iter(visits), None)
+
+    def _join_open_visit(self, visit: Entry, pending: list[Entry], signal: Signal) -> list[Change]:
         changes = []
         for ring in pending:
             del self._active[ring.id]
@@ -432,5 +449,7 @@ class Engine:
             changes.append(Change(ChangeKind.CLOSED, ring))
         visit.signals.sort(key=lambda s: s.time)
         self._add_signal(visit, signal)
+        if visit.certainty is Certainty.UNCERTAIN:  # the door opening of the joining guest does not end the visit
+            visit.rule_state[JOINED] = [*visit.rule_state.get(JOINED, ()), signal.time.isoformat()]
         changes.append(Change(ChangeKind.SIGNAL_ADDED, visit, signal))
         return changes

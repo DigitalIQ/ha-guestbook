@@ -128,7 +128,8 @@ In plain words:
 4. **A ring with no door opening and no presence** is an unanswered ring.
 5. **An uncertain visit ends** at the first door opening after which the door stays closed for the quiet period. The end time is that door opening. Door openings in the entry grace right after the guest came in are ignored. If no end is detected, the visit stops after the maximum duration.
 6. **A guest phone joining an uncertain visit** makes it certain and adds the guest. You get one visit, not two.
-7. **Restarts do not split visits.** Open visits continue after a restart of Home Assistant.
+7. **A ring plus a door opening or presence while a visit is open** joins that visit, certain or uncertain. No second entry starts and no second correction question comes. The door opening of the newcomer is covered by the entry grace, so it does not end the visit.
+8. **Restarts do not split visits.** Open visits continue after a restart of Home Assistant.
 
 Every entry stores the reason why the rules decided what they decided (`ring_then_door`, `ring_then_presence`, `resident_signal`, `ring_no_entry`, `guest_phone`, `guest_phone_at_start` for the start; `door_then_quiet`, `max_duration`, `guests_left`, `corrected` for the end).
 

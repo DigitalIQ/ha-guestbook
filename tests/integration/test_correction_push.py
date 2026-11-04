@@ -14,6 +14,7 @@ from .conftest import (
     add_guest,
     add_phone,
     advance,
+    calendar_uids,
     get_rings,
     get_visits,
     ring,
@@ -317,3 +318,18 @@ async def test_the_correct_entry_action_needs_no_token(hass: HomeAssistant, setu
     )
 
     assert _entry(setup_guestbook, entry_id).correction.kind == "delivery"
+
+
+async def test_a_second_ring_during_an_uncertain_visit_joins_it_without_a_second_question(
+    hass: HomeAssistant, setup_guestbook, freezer
+):
+    calls = await select_phone(hass, setup_guestbook, push_arrival=False)
+    entry_id = await start_uncertain_visit(hass)
+    await advance(hass, freezer, timedelta(minutes=20))
+    hass.states.async_set(DOOR, "off")
+    await ring(hass)
+    hass.states.async_set(DOOR, "on")
+    await hass.async_block_till_done()
+
+    assert await calendar_uids(hass, "calendar.guestbook_visits") == [entry_id]
+    assert len(calls) == 1
