@@ -8,14 +8,12 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
-import probatio
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState, ConfigSubentry
 from homeassistant.const import EVENT_STATE_CHANGED, STATE_HOME
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers import selector
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
@@ -31,6 +29,8 @@ from .const import (
     SUBENTRY_GUEST,
 )
 from .core import CorrectionKind, effective_end, effective_start, normalize_name
+from .discovery import detect_guest_trackers
+from .forms import TRACKERS, ShowAllMixin
 from .guests import guests_of
 
 if TYPE_CHECKING:
@@ -244,7 +244,7 @@ async def _async_home_during(
     return {entity_id for entity_id, history in states.items() if any(s.state == STATE_HOME for s in history)}
 
 
-class GuestSuggestionFlow(RepairsFlow):
+class GuestSuggestionFlow(ShowAllMixin, RepairsFlow):
     """Creates the guest of a suggestion; the form shows the name and preselects the phones."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> Any:
@@ -257,33 +257,32 @@ class GuestSuggestionFlow(RepairsFlow):
         if entry is None or entry.state is not ConfigEntryState.LOADED:
             return self.async_abort(reason="not_loaded")
         name = str(data["name"])
+        suggested: dict[str, Any] | None = None
         if user_input is not None:
-            if normalize_name(name) not in {normalize_name(guest.name) for guest in guests_of(entry)}:
-                self.hass.config_entries.async_add_subentry(
-                    entry,
-                    ConfigSubentry(
-                        data=MappingProxyType(
-                            {CONF_NAME: name, CONF_TRACKERS: list(user_input.get(CONF_TRACKERS, []))}
+            values, switched = self._split_input(user_input)
+            if not switched:
+                if normalize_name(name) not in {normalize_name(guest.name) for guest in guests_of(entry)}:
+                    self.hass.config_entries.async_add_subentry(
+                        entry,
+                        ConfigSubentry(
+                            data=MappingProxyType(
+                                {CONF_NAME: name, CONF_TRACKERS: list(values.get(CONF_TRACKERS, []))}
+                            ),
+                            subentry_type=SUBENTRY_GUEST,
+                            title=name,
+                            unique_id=None,
                         ),
-                        subentry_type=SUBENTRY_GUEST,
-                        title=name,
-                        unique_id=None,
-                    ),
-                )
-            return self.async_create_entry(data={})
-        schema = probatio.Schema(
-            {
-                probatio.Optional(CONF_TRACKERS): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="device_tracker", multiple=True)
-                )
-            }
-        )
-        suggested = await async_suggested_trackers(self.hass, entry, data.get("visit_id"))
-        return self.async_show_form(
-            step_id="guest",
-            data_schema=self.add_suggested_values_to_schema(schema, {CONF_TRACKERS: suggested}),
-            description_placeholders={"name": name},
-        )
+                    )
+                return self.async_create_entry(data={})
+            suggested = values
+        detected = {CONF_TRACKERS: detect_guest_trackers(self.hass, entry)}
+        if suggested is None:
+            # The phones that joined during the visit, without the ones that cannot be a guest's (a TV, a printer).
+            trackers = await async_suggested_trackers(self.hass, entry, data.get("visit_id"))
+            if detected[CONF_TRACKERS]:
+                trackers = [t for t in trackers if t in detected[CONF_TRACKERS].listed]
+            suggested = {CONF_TRACKERS: trackers}
+        return self._detecting_form("guest", (TRACKERS,), detected, {}, suggested, placeholders={"name": name})
 
 
 async def async_create_fix_flow(hass: HomeAssistant, issue_id: str, data: dict[str, Any] | None) -> RepairsFlow:

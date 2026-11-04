@@ -38,6 +38,9 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 9. As a user, I want every source to be optional, so that Guestbook works with whatever hardware I have.
 10. As a user, I want to change my source selection later without losing data, so that I can add new hardware.
 11. As a user, I want to see the UI in German or English, following my Home Assistant language, so that I understand every field.
+82. As a user, I want each field of the setup and options forms to list only fitting entities (a doorbell field lists doorbells, not every binary sensor), so that I do not search through hundreds of entities.
+83. As a user, I want the most likely entities preselected in the setup, so that setup is often a matter of pressing Submit. I can remove them.
+84. As a user, I want a collapsed Advanced section with a switch "Show all entities", so that an unusual entity is never out of reach. Entities I selected earlier always stay selectable.
 
 ### Guests
 
@@ -160,7 +163,8 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - **Latest entry**: the entry that corrections without an entry id, the buttons and the Latest entry sensor mean. It is the entry with the most recent start whose stored decision is `visit` or `unanswered_ring`, open or closed. Pending rings and resident arrivals are never chosen, by decision: a pending ring cannot be corrected yet, and a resident arrival is not something the user wants to correct by accident. The stored decision and start count, not the correction, so a corrected entry stays selected and can be corrected again. The selection is a pure function in the rule core. With no such entry the actions and buttons raise a translated error.
 - **Correction entities**: `sensor` Latest entry (state: the rendered title, cut below 255 characters; attributes `entry_id`, `start`, `end`, `kind`, `corrected`), `text` Guest name (max 64, restored after a restart, empty by default) and four `button` entities that correct the latest entry with the correction source `button`. The Visit button takes the guest name from the text entity (empty: a visit without a name) and clears it after a successful press.
 - **Actions**: `guestbook.resident_unlock`, `guestbook.correct_entry`, `guestbook.add_visit`, `guestbook.add_note`, `guestbook.export`. All with a `services.yaml` description and translations.
-- **Config flow**: one config entry per Home Assistant instance (`single_config_entry`). Sources and residents in the setup form; sources, residents, settings, push targets and push switches in the options flow.
+- **Config flow**: one config entry per Home Assistant instance (`single_config_entry`). Setup in two steps, sources and then residents with their signals; sources, residents, settings, push targets and push switches in the options flow.
+- **Entity detection**: every entity field lists only the candidates that fit it, found by device class, name words (English and German), area and shared devices, never hidden, disabled, config or diagnostic entities. The setup preselects the likely ones. A collapsed Advanced section has the switch "Show all entities", which shows the same step again with unfiltered lists; values already stored are always part of the list. Guest phones leave out the trackers of persons, other guests, resident signals and Companion app phones. The pure ranking is in the rule core, the registry reading in the integration layer.
 - **Guests as config subentries** of type `guest`, with a `user` and a `reconfigure` step. Fields: name and a list of `device_tracker` entities.
 - **Guest suggestion**: when a correction names a guest without a profile, a fixable repair issue offers to create the guest, with the unlinked `device_tracker` entities that were `home` during that visit preselected.
 - **Repairs**: one issue per missing source entity, removed when the entity is back or deselected.

@@ -139,9 +139,35 @@ async def test_fix_flow_shows_the_name_and_preselects_unlinked_phones_that_are_h
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "guest"
-    assert result["description_placeholders"] == {"name": "Robin"}
-    (key,) = result["data_schema"].schema
+    assert result["description_placeholders"]["name"] == "Robin"
+    (key,) = (k for k in result["data_schema"].schema if str(k) == "trackers")
     assert key.description["suggested_value"] == [ROBIN_PHONE]
+
+
+async def test_fix_flow_leaves_a_tv_out_of_the_list_and_the_preselection_and_can_show_all(
+    hass: HomeAssistant, setup_guestbook, flows
+):
+    hass.states.async_set(ROBIN_PHONE, "home", {"source_type": "router", "friendly_name": "Robin iPhone"})
+    hass.states.async_set("device_tracker.living_room_tv", "home", {"source_type": "router", "friendly_name": "TV"})
+    entry_id = await start_uncertain_visit(hass)
+    await correct(hass, entry_id, guest_name="Robin")
+
+    result = await flows.async_init(DOMAIN, context={"issue_id": ROBIN_ISSUE})
+
+    schema = {str(key): (key, value) for key, value in result["data_schema"].schema.items()}
+    assert schema["trackers"][1].config["include_entities"] == [ROBIN_PHONE]
+    assert schema["trackers"][0].description["suggested_value"] == [ROBIN_PHONE]
+    result = await flows.async_configure(result["flow_id"], {"trackers": [ROBIN_PHONE], "advanced": {"show_all": True}})
+    assert result["type"] is FlowResultType.FORM
+    (trackers,) = (v for k, v in result["data_schema"].schema.items() if str(k) == "trackers")
+    assert "include_entities" not in trackers.config
+    result = await flows.async_configure(
+        result["flow_id"],
+        {"trackers": [ROBIN_PHONE, "device_tracker.living_room_tv"], "advanced": {"show_all": True}},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    (subentry,) = setup_guestbook.subentries.values()
+    assert subentry.data["trackers"] == [ROBIN_PHONE, "device_tracker.living_room_tv"]
 
 
 async def test_fix_flow_creates_the_guest_with_the_selected_phones(hass: HomeAssistant, setup_guestbook, flows):

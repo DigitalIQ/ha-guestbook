@@ -45,7 +45,7 @@ async def test_preselection_uses_the_recorder_history_of_the_visit(hass: HomeAss
 
     result = await flows.async_init(DOMAIN, context={"issue_id": "guest_suggestion_robin"})
 
-    (key,) = result["data_schema"].schema
+    (key,) = (k for k in result["data_schema"].schema if str(k) == "trackers")
     assert key.description["suggested_value"] == [ROBIN_PHONE]
 
 

@@ -21,5 +21,7 @@ Terms used in code, tests, tickets and the UI. Use these words, not synonyms.
 | **Correction** | A user answer that overrides the decision: `resident`, `delivery`, `visit` (with guest name), `unknown`. Stored next to the decision, never replacing it. |
 | **Calendar edit** | An edit or delete of an event in the Home Assistant calendar dialog. The title is read as a correction, changed times become display overrides, added description lines become notes, and Delete stores a `resident` correction. The correction source is `calendar`. |
 | **Latest entry** | The entry with the most recent start whose decision is `visit` or `unanswered_ring`, open or closed. The default target of `correct_entry`, `add_note` and the correction buttons. |
+| **Candidate** | An entity that fits a field of the setup forms (a doorbell, a door contact, a guest phone). Found by device class, name words, area and shared devices. A **suggested** candidate is also preselected in the setup. |
+| **Show all entities** | The switch in the Advanced section of a form. It lists every entity of the field's kind, not only the candidates. |
 | **Rule core** | The pure Python part that turns signals and settings into entries. Has no Home Assistant imports. |
 | **Settings** | The adjustable numbers of the rule core (windows, quiet time, max duration, retention). |

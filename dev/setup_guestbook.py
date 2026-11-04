@@ -73,6 +73,8 @@ async def main():
                 "doors": ["binary_sensor.demo_front_door"],
                 "presence": ["binary_sensor.demo_hallway_presence"],
                 "locks": ["lock.demo_front_lock"],
+            })
+            res = await flow_step(session, "/api/config/config_entries/flow", res, {
                 "residents": ["person.demo_resident"],
                 "resident_signals": ["binary_sensor.demo_fingerprint"],
             })

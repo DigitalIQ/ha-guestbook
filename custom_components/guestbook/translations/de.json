@@ -3,22 +3,54 @@
     "step": {
       "user": {
         "title": "Gästebuch",
-        "description": "Wähle die Entitäten, die Guestbook beobachten soll. Alle Felder sind optional. Du kannst die Auswahl später ändern.",
+        "description": "Wähle die Entitäten, die Guestbook beobachten soll. Alle Felder sind optional. Du kannst die Auswahl später ändern. Die wahrscheinlichsten Entitäten sind vorgewählt.\n\n{hint}",
         "data": {
           "doorbells": "Türklingeln",
           "doors": "Türkontakte",
           "presence": "Anwesenheitssensoren",
-          "locks": "Schlösser",
-          "residents": "Bewohner",
-          "resident_signals": "Bewohnersignale"
+          "locks": "Schlösser"
         },
         "data_description": {
           "doorbells": "Event-Entitäten oder Binärsensoren der Türklingel. Ein Klingeln startet das Klingelfenster.",
           "doors": "Türkontakte. Eine Öffnung nach dem Klingeln macht daraus einen Besuch.",
           "presence": "Anwesenheits- oder Bewegungssensoren im Haus. Anwesenheit nach dem Klingeln macht daraus ebenfalls einen Besuch.",
-          "locks": "Schlösser, deren Zustandswechsel im Besuchsprotokoll erscheinen.",
+          "locks": "Schlösser, deren Zustandswechsel im Besuchsprotokoll erscheinen."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+            "data": {
+              "show_all": "Alle Entitäten anzeigen"
+            },
+            "data_description": {
+              "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+            }
+          }
+        }
+      },
+      "residents": {
+        "title": "Bewohner",
+        "description": "Wähle die Menschen, die hier wohnen, und die Signale, die zeigen, dass einer von ihnen ankommt. Die wahrscheinlichen sind vorgewählt.\n\n{hint}",
+        "data": {
+          "residents": "Bewohner",
+          "resident_signals": "Bewohnersignale"
+        },
+        "data_description": {
           "residents": "Person-Entitäten der Menschen, die hier wohnen. Bewohner werden nie zu Besuchen.",
           "resident_signals": "Entitäten, die beweisen, dass ein Bewohner nach Hause kommt, zum Beispiel ein Fingerabdruckleser oder das Handy eines Bewohners."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+            "data": {
+              "show_all": "Alle Entitäten anzeigen"
+            },
+            "data_description": {
+              "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+            }
+          }
         }
       }
     },
@@ -40,7 +72,7 @@
       },
       "sources": {
         "title": "Quellen",
-        "description": "Entitäten, die Guestbook beobachtet. Eine Entität, die es nicht gibt, löst ein Reparaturproblem aus.",
+        "description": "Entitäten, die Guestbook beobachtet. Eine Entität, die es nicht gibt, löst ein Reparaturproblem aus.\n\n{hint}",
         "data": {
           "doorbells": "Türklingeln",
           "doors": "Türkontakte",
@@ -52,11 +84,23 @@
           "doors": "Türkontakte. Ein Öffnen nach dem Klingeln macht daraus einen Besuch.",
           "presence": "Anwesenheits- oder Bewegungssensoren im Haus. Anwesenheit nach dem Klingeln macht ebenfalls einen Besuch daraus.",
           "locks": "Schlösser, deren Zustandswechsel im Besuchslog erscheinen."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+            "data": {
+              "show_all": "Alle Entitäten anzeigen"
+            },
+            "data_description": {
+              "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+            }
+          }
         }
       },
       "residents": {
         "title": "Bewohner",
-        "description": "Menschen, die hier wohnen, und die Signale, die zeigen, dass einer von ihnen ankommt.",
+        "description": "Menschen, die hier wohnen, und die Signale, die zeigen, dass einer von ihnen ankommt.\n\n{hint}",
         "data": {
           "residents": "Bewohner",
           "resident_signals": "Bewohnersignale"
@@ -64,6 +108,18 @@
         "data_description": {
           "residents": "Person-Entitäten der Menschen, die hier wohnen. Bewohner werden nie zu Besuchen.",
           "resident_signals": "Entitäten, die zeigen, dass ein Bewohner ankommt, zum Beispiel ein Fingerabdruckleser oder das Handy eines Bewohners."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+            "data": {
+              "show_all": "Alle Entitäten anzeigen"
+            },
+            "data_description": {
+              "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+            }
+          }
         }
       },
       "rules": {
@@ -121,7 +177,7 @@
       "step": {
         "user": {
           "title": "Gast hinzufügen",
-          "description": "Lege einen Gast mit Namen an und verknüpfe die Handys, an denen er erkannt wird. Sobald ein verknüpftes Handy ins Netzwerk kommt, erfasst Guestbook einen Besuch.",
+          "description": "Lege einen Gast mit Namen an und verknüpfe die Handys, an denen er erkannt wird. Sobald ein verknüpftes Handy ins Netzwerk kommt, erfasst Guestbook einen Besuch.\n\n{hint}",
           "data": {
             "name": "Name",
             "trackers": "Handys"
@@ -129,11 +185,23 @@
           "data_description": {
             "name": "Der Name, der im Titel des Besuchs steht.",
             "trackers": "Device-Tracker der Handys des Gastes, zum Beispiel aus dem Router."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Erweitert",
+              "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+              "data": {
+                "show_all": "Alle Entitäten anzeigen"
+              },
+              "data_description": {
+                "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+              }
+            }
           }
         },
         "reconfigure": {
           "title": "Gast bearbeiten",
-          "description": "Ändere den Namen oder die verknüpften Handys dieses Gastes.",
+          "description": "Ändere den Namen oder die verknüpften Handys dieses Gastes.\n\n{hint}",
           "data": {
             "name": "Name",
             "trackers": "Handys"
@@ -141,6 +209,18 @@
           "data_description": {
             "name": "Der Name, der im Titel des Besuchs steht.",
             "trackers": "Device-Tracker der Handys des Gastes, zum Beispiel aus dem Router."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Erweitert",
+              "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+              "data": {
+                "show_all": "Alle Entitäten anzeigen"
+              },
+              "data_description": {
+                "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+              }
+            }
           }
         }
       }
@@ -333,12 +413,24 @@
         "step": {
           "guest": {
             "title": "{name} als Gast anlegen",
-            "description": "Eine Korrektur nannte {name} als Besucher, aber es gibt keinen Gast mit diesem Namen. Das legt den Gast an, dann wird der nächste Besuch ohne Klingeln erkannt. Handys, die während des Besuchs zu Hause waren und zu keinem Gast gehören, sind vorgewählt. Entferne die, die nicht ihm gehören.",
+            "description": "Eine Korrektur nannte {name} als Besucher, aber es gibt keinen Gast mit diesem Namen. Das legt den Gast an, dann wird der nächste Besuch ohne Klingeln erkannt. Handys, die während des Besuchs zu Hause waren und zu keinem Gast gehören, sind vorgewählt. Entferne die, die nicht ihm gehören.\n\n{hint}",
             "data": {
               "trackers": "Handys"
             },
             "data_description": {
               "trackers": "Device-Tracker der Handys des Gasts. Du kannst das leer lassen und Handys später ergänzen."
+            },
+            "sections": {
+              "advanced": {
+                "name": "Erweitert",
+                "description": "Nutze das, wenn eine Entität fehlt, die du brauchst.",
+                "data": {
+                  "show_all": "Alle Entitäten anzeigen"
+                },
+                "data_description": {
+                  "show_all": "Einschalten und absenden, um alle Entitäten statt der passenden aufzulisten. Ein Absenden mit geändertem Schalter speichert noch nicht."
+                }
+              }
             }
           }
         },

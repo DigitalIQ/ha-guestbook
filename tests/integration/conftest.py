@@ -178,8 +178,14 @@ async def open_options_step(hass: HomeAssistant, entry: MockConfigEntry, step: s
 
 
 async def set_options(hass: HomeAssistant, entry: MockConfigEntry, *, step: str = "pushes", **options) -> None:
-    """Save the fields of one options step (the pushes by default) through the options flow."""
+    """Save the fields of one options step (the pushes by default) through the options flow.
+
+    The entity steps list only fitting entities; these helpers pick entities by id, so they show all of them first.
+    """
     result = await open_options_step(hass, entry, step)
+    if step in ("sources", "residents"):
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"advanced": {"show_all": True}})
+        assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY

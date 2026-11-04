@@ -34,10 +34,11 @@ async def test_guest_form_offers_name_and_device_trackers(hass: HomeAssistant, s
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
-    assert set(result["data_schema"].schema) == {"name", "trackers"}
+    assert {str(key) for key in result["data_schema"].schema} == {"name", "trackers", "advanced"}
 
 
 async def test_reconfigure_updates_the_guest(hass: HomeAssistant, setup_guestbook):
+    hass.states.async_set(ALEX_TABLET, "not_home")
     subentry_id = await add_guest(hass, setup_guestbook, "Alex", [ALEX_PHONE])
 
     result = await hass.config_entries.subentries.async_init(

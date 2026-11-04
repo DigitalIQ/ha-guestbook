@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import probatio
@@ -17,23 +18,18 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
-    CONF_DOORBELLS,
-    CONF_DOORS,
     CONF_ENTRY_GRACE,
-    CONF_LOCKS,
     CONF_MAX_DURATION,
     CONF_NAME,
     CONF_NOTIFY_ENTITIES,
     CONF_PHONE_GRACE,
     CONF_PHONES,
-    CONF_PRESENCE,
     CONF_PUSH_ARRIVAL,
     CONF_PUSH_CORRECTION,
     CONF_PUSH_END,
     CONF_PUSH_OPEN_PATH,
     CONF_PUSH_UNANSWERED_RING,
     CONF_QUIET_PERIOD,
-    CONF_RESIDENT_SIGNALS,
     CONF_RESIDENT_WINDOW,
     CONF_RESIDENTS,
     CONF_RETENTION,
@@ -44,6 +40,25 @@ from .const import (
     SUBENTRY_GUEST,
 )
 from .core import clean_guest_name
+from .core.candidates import Candidates
+from .discovery import (
+    detect_guest_trackers,
+    detect_residents,
+    detect_sources,
+    stored,
+    suggest_phone_devices,
+)
+from .forms import (
+    DOORBELLS,
+    DOORS,
+    LOCKS,
+    PRESENCE,
+    RESIDENT_SIGNALS,
+    RESIDENTS,
+    TRACKERS,
+    Field,
+    ShowAllMixin,
+)
 from .settings import rule_defaults
 
 
@@ -51,32 +66,10 @@ def _entities(*domains: str) -> selector.EntitySelector:
     return selector.EntitySelector(selector.EntitySelectorConfig(domain=list(domains) or None, multiple=True))
 
 
-GUEST_SCHEMA = probatio.Schema(
-    {
-        probatio.Required(CONF_NAME): selector.TextSelector(),
-        probatio.Optional(CONF_TRACKERS, default=[]): _entities("device_tracker"),
-    }
-)
-
-SOURCES_STEP_SCHEMA = probatio.Schema(
-    {
-        probatio.Optional(CONF_DOORBELLS, default=[]): _entities("event", "binary_sensor"),
-        probatio.Optional(CONF_DOORS, default=[]): _entities("binary_sensor"),
-        probatio.Optional(CONF_PRESENCE, default=[]): _entities("binary_sensor"),
-        probatio.Optional(CONF_LOCKS, default=[]): _entities("lock"),
-    }
-)
-
-RESIDENTS_STEP_SCHEMA = probatio.Schema(
-    {
-        probatio.Optional(CONF_RESIDENTS, default=[]): _entities("person"),
-        probatio.Optional(CONF_RESIDENT_SIGNALS, default=[]): _entities(),
-    }
-)
-
-
-# The setup form asks for the sources and the residents in one go.
-SOURCES_SCHEMA = probatio.Schema({**SOURCES_STEP_SCHEMA.schema, **RESIDENTS_STEP_SCHEMA.schema})
+SOURCE_FIELDS = (DOORBELLS, DOORS, PRESENCE, LOCKS)
+RESIDENT_FIELDS = (RESIDENTS, RESIDENT_SIGNALS)
+SOURCES_DEFAULTS: dict[str, list[str]] = {field.key: [] for field in (*SOURCE_FIELDS, *RESIDENT_FIELDS)}
+GUEST_NAME = {probatio.Required(CONF_NAME): selector.TextSelector()}
 
 
 def _number(unit: str, minimum: float, maximum: float, step: float) -> selector.NumberSelector:
@@ -119,66 +112,101 @@ PUSH_SCHEMA = probatio.Schema(
 )
 
 
-class GuestSubentryFlow(ConfigSubentryFlow):
+class GuestSubentryFlow(ShowAllMixin, ConfigSubentryFlow):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        if user_input is not None:
-            name = clean_guest_name(user_input[CONF_NAME])
-            return self.async_create_entry(title=name, data={**user_input, CONF_NAME: name})
-        return self.async_show_form(step_id="user", data_schema=GUEST_SCHEMA)
+        return self._guest_step("user", user_input, {}, None)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         subentry = self._get_reconfigure_subentry()
+        return self._guest_step("reconfigure", user_input, dict(subentry.data), subentry.subentry_id)
+
+    def _guest_step(
+        self, step_id: str, user_input: dict[str, Any] | None, current: dict[str, Any], guest_id: str | None
+    ) -> SubentryFlowResult:
+        suggested = current
         if user_input is not None:
-            name = clean_guest_name(user_input[CONF_NAME])
-            return self.async_update_and_abort(
-                self._get_entry(), subentry, title=name, data={**user_input, CONF_NAME: name}
-            )
-        return self.async_show_form(
-            step_id="reconfigure", data_schema=self.add_suggested_values_to_schema(GUEST_SCHEMA, subentry.data)
-        )
+            data, switched = self._split_input(user_input)
+            if not switched:
+                name = clean_guest_name(data[CONF_NAME])
+                data = {**data, CONF_NAME: name}
+                if step_id == "user":
+                    return self.async_create_entry(title=name, data=data)
+                return self.async_update_and_abort(
+                    self._get_entry(), self._get_reconfigure_subentry(), title=name, data=data
+                )
+            suggested = data
+        detected = {CONF_TRACKERS: detect_guest_trackers(self.hass, self._get_entry(), guest_id)}
+        return self._detecting_form(step_id, (TRACKERS,), detected, current, suggested, head=GUEST_NAME)
 
 
-class GuestbookOptionsFlow(OptionsFlow):
+class GuestbookOptionsFlow(ShowAllMixin, OptionsFlow):
     """A menu of four steps. Each step saves on its own and applies without a reload."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(step_id="init", menu_options=["sources", "residents", "rules", "pushes"])
 
     async def async_step_sources(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return self._data_step("sources", SOURCES_STEP_SCHEMA, user_input)
+        return self._data_step("sources", SOURCE_FIELDS, user_input, detect_sources(self.hass))
 
     async def async_step_residents(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return self._data_step("residents", RESIDENTS_STEP_SCHEMA, user_input)
+        return self._data_step(
+            "residents",
+            RESIDENT_FIELDS,
+            user_input,
+            detect_residents(self.hass, self.config_entry, stored(self.config_entry.data, CONF_RESIDENTS)),
+        )
 
     async def async_step_rules(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self._options_step("rules", RULES_SCHEMA, user_input)
 
     async def async_step_pushes(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return self._options_step("pushes", PUSH_SCHEMA, user_input)
+        suggested = self.config_entry.options
+        if CONF_PHONES not in suggested:
+            residents = stored(self.config_entry.data, CONF_RESIDENTS)
+            suggested = {**suggested, CONF_PHONES: suggest_phone_devices(self.hass, residents)}
+        return self._options_step("pushes", PUSH_SCHEMA, user_input, suggested)
 
-    def _data_step(self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+    def _data_step(
+        self,
+        step_id: str,
+        fields: tuple[Field, ...],
+        user_input: dict[str, Any] | None,
+        detected: dict[str, Candidates],
+    ) -> ConfigFlowResult:
         """Sources live in the entry data, as the config flow saved them; the options stay as they are."""
+        suggested = self.config_entry.data
         if user_input is not None:
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data={**self.config_entry.data, **user_input}
-            )
-            return self.async_create_entry(data=dict(self.config_entry.options))
-        return self.async_show_form(
-            step_id=step_id, data_schema=self.add_suggested_values_to_schema(schema, self.config_entry.data)
-        )
+            data, switched = self._split_input(user_input)
+            if not switched:
+                self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **data})
+                return self.async_create_entry(data=dict(self.config_entry.options))
+            suggested = {**suggested, **data}
+        return self._detecting_form(step_id, fields, detected, self.config_entry.data, suggested)
 
     def _options_step(
-        self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None
+        self,
+        step_id: str,
+        schema: probatio.Schema,
+        user_input: dict[str, Any] | None,
+        suggested: Mapping[str, Any] | None = None,
     ) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data={**self.config_entry.options, **user_input})
         return self.async_show_form(
-            step_id=step_id, data_schema=self.add_suggested_values_to_schema(schema, self.config_entry.options)
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(
+                schema, self.config_entry.options if suggested is None else suggested
+            ),
         )
 
 
-class GuestbookConfigFlow(ConfigFlow, domain=DOMAIN):
+class GuestbookConfigFlow(ShowAllMixin, ConfigFlow, domain=DOMAIN):
+    """Setup in two steps: the sources, then the residents and their signals (which depend on the persons)."""
+
     VERSION = 1
+
+    def __init__(self) -> None:
+        self._sources: dict[str, Any] = {}
 
     @staticmethod
     @callback
@@ -191,6 +219,23 @@ class GuestbookConfigFlow(ConfigFlow, domain=DOMAIN):
         return {SUBENTRY_GUEST: GuestSubentryFlow}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        detected = detect_sources(self.hass)
+        suggested = {key: list(found.suggested) for key, found in detected.items()}
         if user_input is not None:
-            return self.async_create_entry(title="Guestbook", data=user_input)
-        return self.async_show_form(step_id="user", data_schema=SOURCES_SCHEMA)
+            data, switched = self._split_input(user_input)
+            if not switched:
+                self._saved()
+                self._sources = data
+                return await self.async_step_residents()
+            suggested = data
+        return self._detecting_form("user", SOURCE_FIELDS, detected, {}, suggested)
+
+    async def async_step_residents(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        detected = detect_residents(self.hass)
+        suggested = {key: list(found.suggested) for key, found in detected.items()}
+        if user_input is not None:
+            data, switched = self._split_input(user_input)
+            if not switched:
+                return self.async_create_entry(title="Guestbook", data={**SOURCES_DEFAULTS, **self._sources, **data})
+            suggested = data
+        return self._detecting_form("residents", RESIDENT_FIELDS, detected, {}, suggested)

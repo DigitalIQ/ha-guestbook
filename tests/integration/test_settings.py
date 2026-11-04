@@ -37,7 +37,7 @@ RULE_DEFAULTS = {
 
 
 def fields(result: dict) -> dict:
-    return {str(key): key for key in result["data_schema"].schema}
+    return {str(key): key for key in result["data_schema"].schema if str(key) != "advanced"}
 
 
 async def test_options_menu_offers_sources_residents_rules_and_pushes(hass: HomeAssistant, setup_guestbook):

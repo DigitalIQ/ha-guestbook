@@ -49,7 +49,7 @@ If your HACS does not list Guestbook yet, add it as a custom repository: in HACS
 
 ## Setup
 
-The setup form asks for your sources. Every field is optional, and you can change all of them later.
+Setup has two steps: first the sources, then the residents and their signals. Every field is optional, and you can change all of them later.
 
 | Field | What to select |
 | --- | --- |
@@ -60,11 +60,30 @@ The setup form asks for your sources. Every field is optional, and you can chang
 | Residents | `person` entities of the people who live here. |
 | Resident signals | Entities that prove a resident is arriving: a fingerprint reader, a resident phone tracker, a "opened by resident" sensor. |
 
+#### Entities are found for you
+
+Each field lists only entities that fit it, and the setup preselects the likely ones. You can remove a preselected entity or add another.
+
+- **Doorbells**: `event` entities with the device class `doorbell` come first. Doorbells that show up as a `binary_sensor` without a device class are found by name (bell, Klingel, visitor and similar words).
+- **Door contacts**: the device classes `door` and `opening`, and contacts with a door name (door, Tür, Haustür, Eingang). Windows are left out. A contact in an entrance area (hallway, entrance, Flur, Diele, Eingang), on the device of a preselected lock or doorbell, or named front door is preselected.
+- **Presence sensors**: occupancy, presence and motion sensors. Only one in an entrance area is preselected, and one per device, so an Aqara FP300 with an occupancy and a motion entity gives its occupancy entity.
+- **Locks**: all locks. A lock in an entrance area, or the only lock, is preselected.
+- **Residents**: all `person` entities. Persons linked to a Home Assistant user are preselected.
+- **Resident signals**: the Wi-Fi and Bluetooth `device_tracker` entities of your persons (a Fritz!Box tracker or a Private BLE Device tracker), fingerprint, keypad and NFC entities, and locks. The trackers of the preselected residents are preselected. The Companion app tracker of a phone is listed but not preselected, because it only changes when the phone reports its location.
+- **Guest phones** (guest form and the repair that offers a new guest): `device_tracker` entities that are not a person's, not another guest's, not a resident signal and not a Companion app phone. Router and Bluetooth trackers with a phone-like name (iPhone, Galaxy, Pixel) come first. Names like TV, printer or repeater are left out.
+- **Hidden, disabled, configuration and diagnostic entities** are never listed.
+
+The areas come from the entity, else its device, else the device it is connected through. Assign areas to your door and presence sensors to get better preselection.
+
+If an entity you need is missing, open the collapsed **Advanced** section of the form, turn on **Show all entities** and press Submit. The same step comes back with every entity of that kind and your choices kept. Press Submit again to save. A field for which nothing fitting was found shows all entities of its kind from the start, and the form says so. Entities you selected earlier always stay selectable, so an existing setup keeps working when you open the options.
+
+The push phones in **Configure > Pushes** are preselected the same way until you save that step for the first time: the Companion app devices of your residents.
+
 ### Guests
 
 Guests are added on the Guestbook entry page (**Settings > Devices & services > Guestbook > Add guest**). A guest has a name and one or more phones, selected as `device_tracker` entities. Every guest also gets a binary sensor that is on while that guest is visiting. You can edit or remove a guest later.
 
-If you correct a visit and name a guest that does not exist yet, Guestbook raises a repair that offers to create the guest. The phones that were home during that visit and belong to nobody are preselected, so linking the right phone is one click. A device that is always home, such as a TV, is preselected too. Remove it in the form.
+If you correct a visit and name a guest that does not exist yet, Guestbook raises a repair that offers to create the guest. The phones that were home during that visit and belong to nobody are preselected, so linking the right phone is one click. Devices that look like a TV, a printer or a repeater are not preselected.
 
 ### Apple Watch or iPhone as resident signal
 

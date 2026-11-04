@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.6
+
+The setup shows fitting entities and preselects the likely ones.
+
+- Each field of the setup, the options, the guest form and the repair that offers a new guest lists only entities that fit it. A doorbell field lists doorbells, not every event and binary sensor. Hidden, disabled, configuration and diagnostic entities are never listed.
+- Entities are recognised by device class first, then by name words in English and German (bell, Klingel, door, Tür, Haustür) and by area (hallway, entrance, Flur, Diele, Eingang).
+- The setup preselects the likely entities: a doorbell with the doorbell class, a door contact or presence sensor in the entrance area, the only lock, persons with a Home Assistant user and their Wi-Fi and Bluetooth trackers as resident signals. Remove or add as you like.
+- The setup has two steps now: sources, then residents and resident signals.
+- Guest phones leave out persons' trackers, other guests' phones, resident signals and Companion app phones. TVs, printers and repeaters are not preselected in the repair.
+- The collapsed **Advanced** section of every entity step has **Show all entities**. Submit once to see everything, submit again to save. Values you selected earlier always stay selectable.
+- Push phones are preselected with the Companion app devices of your residents until you save that step.
+
 ## 0.1.5
 
 Correct an entry where you see it: tap the event in the calendar and edit it.
