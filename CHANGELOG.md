@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.5
+
+Correct an entry where you see it: tap the event in the calendar and edit it.
+
+- Both calendars support Edit and Delete in Home Assistant's event dialog. This works in the Calendar panel and the built-in calendar card. Calendar Card Pro opens the dialog with `event_tap_action: {action: details}`. Chronicle Card shows its own read-only popup.
+- The new title is read like an answer to the correction question: "That was me" / "War ich", "Delivery" / "Lieferung", "Don't know" / "Weiß nicht", "Visit: Alex" / "Besuch: Alex" or just "Alex". An unchanged title changes nothing.
+- Changed start and end replace the times shown in the calendar. The end of a running visit is ignored.
+- Lines you add to the description become notes. The log itself stays generated.
+- Delete hides the entry from the calendars. It stays in the storage and the export as a `resident` correction with the source `calendar`.
+- Edits that cannot work (unknown entry, ring still in its window, all-day or repeating event, empty title) fail with a translated message.
+
 ## 0.1.4
 
 Guestbook is in the default HACS catalog.
