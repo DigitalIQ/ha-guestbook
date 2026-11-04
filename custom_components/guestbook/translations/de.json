@@ -206,6 +206,18 @@
     },
     "end_before_start": {
       "message": "Das Ende muss nach dem Beginn liegen."
+    },
+    "not_in_calendar": {
+      "message": "Der Eintrag {entry_id} ist nicht (mehr) in diesem Kalender. Lade den Kalender neu und öffne den Termin noch einmal."
+    },
+    "calendar_all_day": {
+      "message": "Ein Guestbook-Eintrag hat einen Beginn und ein Ende mit Uhrzeit. Schalte \"Ganztägig\" aus."
+    },
+    "calendar_repeat": {
+      "message": "Ein Guestbook-Eintrag kann sich nicht wiederholen. Entferne die Wiederholungsregel."
+    },
+    "calendar_empty_title": {
+      "message": "Der Titel darf nicht leer sein. Nimm einen Gastnamen, \"War ich\", \"Lieferung\" oder \"Weiß nicht\"."
     }
   },
   "services": {

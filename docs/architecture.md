@@ -13,6 +13,7 @@ custom_components/guestbook/
     manual.py           manual_visit (the entry for add_visit)
     effective.py        EffectiveKind, effective_kind/guests/start/end (entry + correction)
     latest.py           latest_entry (the entry that buttons and an omitted entry_id mean)
+    edit.py             parse_title, added_lines, plan_edit, EditPlan, TitleAnswer (what an edit in a calendar dialog means)
     render.py           renderer: render_description, render_title (entry + language -> text)
     archive.py          expired_entries, entries_in_range, to_jsonl (retention purge and export selection)
     messages.py         push texts and buttons: PushKind, unknown_guest, push_title, push_message, correction_actions, action_id, parse_action_id
@@ -24,7 +25,7 @@ custom_components/guestbook/
   store.py              GuestbookStore (HA Store wrapper, purge)
   runtime.py            GuestbookRuntime: owns engine + store, applies Changes, fires events, notifies listeners
   adapter.py            state listeners -> Signal (doorbells, doors, presence, locks, resident signals)
-  calendar.py           Visits and Rings calendars (shared base class; Visits shows effective kind visit, Rings shows effective kinds unanswered_ring and delivery)
+  calendar.py           Visits and Rings calendars (shared base class; Visits shows effective kind visit, Rings shows effective kinds unanswered_ring and delivery; both support edit and delete)
   sensor.py / binary_sensor.py / button.py / text.py
   services.py           actions
   notifier.py           Notifier: pushes and correction answers (ticket 10, 11)
@@ -161,6 +162,7 @@ Runtime methods (`GuestbookRuntime`, all raise `ServiceValidationError` with a t
 - `async_add_note(entry_id | None, note) -> Entry`: appends to `entry.notes`. Without an `entry_id` it notes the latest entry. Errors: `no_latest_entry`, `unknown_entry`.
 - `async_latest_entry() -> Entry | None`: `core.latest_entry(entries)`.
 - `async_press_button(kind: CorrectionKind) -> Entry`: `async_correct_entry(None, kind, source="button")`. For `VISIT` the name comes from `runtime.guest_name` (empty = no name) and is cleared after the correction succeeded; on an error the name stays. `guest_name` / `async_set_guest_name(name)` hold the text entity's value, so the text entity and the button share it; it is not stored in the entry.
+- `async_calendar_entry(entry_id, kinds)` and `async_edit_entry(entry, plan)` / `async_hide_entry(entry)`: see "Editing in the calendar".
 - `async_entries(*kinds: EffectiveKind)` filters by effective kind. `async_open_visits()` and the current visit sensor use `effective_guests`.
 
 Actions (`services.py`, schemas with `probatio`, descriptions in `services.yaml`, texts in `strings.json` and `translations/{en,de}.json`):
@@ -189,6 +191,21 @@ Guests (ticket 05): config subentries of type `guest` (`SUBENTRY_GUEST`) with da
 Sensors (ticket 06): `entity.py` holds `GuestbookEntity` (has_entity_name, no polling, registers a runtime listener, device = the "Guestbook" service device unless a device is passed); calendars and sensors derive from it. `binary_sensor.guestbook_visit_active` is on while `runtime.async_open_visits()` is not empty. `sensor.guestbook_current_visit` shows the most recent open visit: state = comma-joined guest names (cut with an ellipsis to stay below 250 characters), the translated word "Unknown guest" (`unknown_guest(language)` in `core/messages.py`, `hass.config.language`) for a visit without guests, `None` (HA shows unknown) when no visit is open; attributes `entry_id`, `start` (ISO), `certainty` only while a visit is open. One `GuestSensor` per guest subentry (`binary_sensor.<guest>_visiting`), added with `config_subentry_id`, on while the guest is *present* in an open visit (`Entry.present_guest_ids`); it goes off when the guest left a visit that continues with someone else. HA requires a device to belong to one subentry, so each guest gets its own service device (identifier `(DOMAIN, subentry_id)`, name = guest name). The binary sensor platform has its own entry update listener that adds sensors for new guests and renames the device of renamed ones; `async_remove_subentry` removes the entities and the device. All translation keys live under `entity.binary_sensor` (`visit_active`, `guest`) and `entity.sensor` (`current_visit`).
 
 Correction entities (all on the Guestbook device, platforms `sensor`, `text`, `button`): `sensor.guestbook_latest_entry` (`LatestEntrySensor`, translation key `latest_entry`) shows `render_title(latest_entry, hass.config.language)` cut to 250 characters, attributes `entry_id`, `start`, `end` (null while open), `kind` (the effective kind) and `corrected` (a correction exists); unknown without a correctable entry. `text.guestbook_guest_name` (`GuestNameText`, key `guest_name`, `TextMode.TEXT`, max 64, min 0, empty by default) keeps its value in the runtime and restores it with `RestoreEntity` (the states `unknown` and `unavailable` are ignored). `CorrectionButton` creates one button per `CorrectionKind` (keys `resident`, `delivery`, `visit`, `unknown`; entity ids `button.guestbook_that_was_me`, `button.guestbook_delivery`, `button.guestbook_visit`, `button.guestbook_don_t_know` in English); a press calls `runtime.async_press_button(kind)` and so raises the translated `no_latest_entry` error when nothing can be corrected. The correction source is `button`. All of them update through the runtime listener.
+
+## Editing in the calendar
+
+Both calendars set `CalendarEntityFeature.UPDATE_EVENT | DELETE_EVENT` and implement `async_update_event` and `async_delete_event` (Home Assistant 2026.10: `calendar/event/update` and `calendar/event/delete` call them with the event `uid`; a `HomeAssistantError` such as `ServiceValidationError` reaches the dialog as the error text). `CalendarEvent.uid` is the entry id on both calendars, which is what the frontend sends back. The frontend sends `summary`, `dtstart`, `dtend` (local time without offset, whole seconds; the schema turns them into aware local datetimes), `description` and, when set, `location` and `rrule`.
+
+`GuestbookRuntime.async_calendar_entry(uid, kinds)` finds the entry or raises `unknown_entry` (no such id), `entry_pending` (a ring in its window) or `not_in_calendar` (the entry exists but its effective kind belongs to the other calendar, for example after an earlier edit moved it). The calendar then refuses all-day events and recurrences (`calendar_all_day`, `calendar_repeat`) and a blank title (`calendar_empty_title`), and asks the pure core for an `EditPlan`:
+
+- `core/edit.py`, `plan_edit(entry, summary, start, end, generated, sent) -> EditPlan(answer, start, end, notes)` compares what the dialog sent with what it showed. It returns only differences.
+- Title: if the title equals the rendered title of the entry in any language (compared case-insensitively, one space between words), there is no answer. Otherwise `parse_title` reads it: first a word from `KEYWORDS` (English and German; `resident`, `delivery`, `unknown`, and `visit`/`besuch` for a visit without a name), then the prefix `Visit:` or `Besuch:` followed by a name, else the whole text is the guest name. Names go through `clean_guest_name` (trimmed, 64 characters). Kinds: resident, delivery, unknown, visit.
+- Times: a time counts as changed when it differs from `effective_start`/`effective_end` in more than the minute (the dialog drops microseconds and works in minutes). The end of an open entry is never a change, because an open entry shows `now` as its end and the dialog cannot tell that from an end the user typed.
+- Description: `added_lines(generated, sent)` returns the lines of `sent` that the generated description does not have (multiset comparison on whitespace-normalised lines, blank lines dropped). Deleted lines are ignored, changed lines count as new lines.
+
+`GuestbookRuntime.async_edit_entry(entry, plan)` applies the plan. If the plan has an answer or a time change it calls `async_correct_entry(..., source="calendar")` with the answer, or, without an answer, the kind, guest name and note of the existing correction, or `unknown` when there is none (`unknown` keeps the decision). Times the plan leaves alone keep the display overrides of the existing correction, because a correction replaces the earlier one. The notes are appended after the correction succeeded, so a refused edit stores nothing. The correction fires `guestbook_visit_corrected`, so the guest suggestion repair works unchanged. `GuestbookRuntime.async_hide_entry(entry)` is Delete: `async_correct_entry(entry.id, RESIDENT, source="calendar")`. The entry leaves both calendars, a running visit is closed, and the entry stays in the storage and the export until the retention purge. No new correction kind was added, so existing exports and automations keep their meaning.
+
+The renderer names the source in the log (`Correction (calendar, ...)` / `Korrektur (Kalender, ...)`).
 
 ## Runtime
 

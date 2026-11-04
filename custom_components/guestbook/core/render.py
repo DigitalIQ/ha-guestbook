@@ -38,6 +38,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "note": "note",
         "push": "push",
         "action_source": "action",
+        "calendar_source": "calendar",
         "resident_kind": "resident",
         "delivery": "delivery",
         "visit": "visit",
@@ -84,6 +85,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "note": "Notiz",
         "push": "Push",
         "action_source": "Aktion",
+        "calendar_source": "Kalender",
         "resident_kind": "Bewohner",
         "delivery": "Lieferung",
         "visit": "Besuch",
@@ -180,7 +182,9 @@ def _footer(entry: Entry, texts: dict[str, str], clock, tz: tzinfo) -> list[str]
     if entry.end_reason:
         footer.append(f"{texts['end']}: {_reason(entry.end_reason, texts)}")
     if correction := entry.correction:
-        source = texts["push"] if correction.source == "push" else texts["action_source"]
+        source = {"push": texts["push"], "calendar": texts["calendar_source"]}.get(
+            correction.source, texts["action_source"]
+        )
         kind = correction.kind.value
         label = texts["resident_kind"] if correction.kind is CorrectionKind.RESIDENT else texts.get(kind, kind)
         stamp = correction.time.astimezone(tz).strftime("%Y-%m-%d %H:%M")

@@ -26,6 +26,7 @@ Each visit is a calendar event. Its description holds the full log:
 - A ring that comes with a resident signal (your fingerprint, your phone) is you coming home. It is never a visit.
 - A ring with nothing after it is an **unanswered ring**, shown in a separate calendar.
 - For uncertain visits Guestbook asks you on your phone what it was. Your answer is stored next to the original decision.
+- You can also fix an entry in the calendar: open the event, press Edit and change the title, the times or the description. See [Edit an entry in the calendar](#edit-an-entry-in-the-calendar).
 
 ## Requirements
 
@@ -147,8 +148,8 @@ With the default names, Guestbook creates these entities. Your entity ids may di
 | `sensor.guestbook_latest_entry` | The entry that the buttons and the actions without `entry_id` would change: the title as in the calendar (for example "Visit (uncertain)"). Attributes: `entry_id`, `start`, `end` (empty while the visit is open), `kind` (what the entry counts as now, after your correction) and `corrected` (`true` when you corrected it). Unknown while there is no entry. |
 | `text.guestbook_guest_name` | The name the "Visit" button uses. Up to 64 characters, empty by default, kept across restarts. |
 | `button.guestbook_that_was_me`, `button.guestbook_delivery`, `button.guestbook_don_t_know`, `button.guestbook_visit` | "That was me", "Delivery", "Don't know" and "Visit" ("War ich", "Lieferung", "Weiß nicht", "Besuch" in German). Each press corrects the latest entry. See [Correct from the dashboard](#correct-from-the-dashboard). |
-| `calendar.guestbook_visits` | One event per visit. |
-| `calendar.guestbook_rings` | Unanswered rings and entries you corrected to a delivery. |
+| `calendar.guestbook_visits` | One event per visit. You can edit and delete events. |
+| `calendar.guestbook_rings` | Unanswered rings and entries you corrected to a delivery. You can edit and delete events. |
 
 ## Calendars
 
@@ -158,10 +159,45 @@ Resident arrivals appear in no calendar. They stay in the storage and the export
 
 Both calendars are standard Home Assistant `calendar` entities, so any calendar card can show them:
 
-- **Calendar Card Pro**: add `calendar.guestbook_visits` to the card's entities and add `calendar.guestbook_rings` as a second entity with another color if you want to see the rings too. Check the card's options for showing the event description.
-- **Chronicle Card**: select `calendar.guestbook_visits` as the source. A separate card for `calendar.guestbook_rings` keeps deliveries out of the visit list.
+- **Calendar Card Pro**: add `calendar.guestbook_visits` to the card's entities and add `calendar.guestbook_rings` as a second entity with another color if you want to see the rings too. Check the card's options for showing the event description. To edit from the card, set `event_tap_action` to `details` (see below).
+- **Chronicle Card**: select `calendar.guestbook_visits` as the source. A separate card for `calendar.guestbook_rings` keeps deliveries out of the visit list. Its popup is read-only (see below).
 
 Both cards are separate projects. See their documentation for the exact options.
+
+### Edit an entry in the calendar
+
+Open the event, press the pencil (Edit) and change what is wrong, then save. This works in the **Calendar** panel of Home Assistant and in the built-in calendar card. Nothing you save in the dialog changes the stored decision, reason or signals. Guestbook turns the edit into a correction with the source `calendar` (the same correction as the action `guestbook.correct_entry`) and into notes.
+
+**Title.** Guestbook reads the new title like an answer to the correction question. Case does not matter, English and German work in every Home Assistant language, and surrounding spaces are ignored.
+
+| You type | Correction |
+| --- | --- |
+| `That was me`, `War ich`, `Resident` | `resident`: the entry leaves the calendars. |
+| `Delivery`, `Lieferung` | `delivery`: the entry moves to the rings calendar. |
+| `Don't know`, `Weiß nicht`, `Visit (uncertain)` | `unknown`: the entry stays where it is. |
+| `Visit`, `Besuch` | `visit` without a name. |
+| `Visit: Alex`, `Besuch: Alex`, or just `Alex` | `visit` of the guest Alex. |
+
+A name is cut to 64 characters, like everywhere else. Guestbook takes the whole text as one name, so `Visit: Alex, Sam` is one guest called "Alex, Sam". A name without a guest profile raises the same repair as other corrections: it offers to create the guest. If you leave the title as it is, the kind and the guest stay as they are.
+
+**Start and end.** The new times replace the times shown in the calendar. The stored times stay. The dialog works in whole minutes, so a time in the same minute as before counts as unchanged. The end of a running visit is ignored, because the calendar shows "now" as its end and the dialog cannot tell that from an end you typed. Edit the end after the visit has ended. If you change only the times of an entry you have not corrected, Guestbook stores the correction `unknown`, which keeps the kind the rules chose.
+
+**Description.** The log is generated, so you cannot rewrite it. Every line you add or change becomes a note on the entry (the same as `guestbook.add_note`, one note per line) and shows under "Notes" in the description. Lines you delete come back, and a description you leave as it is adds nothing. Open the dialog fresh before you type a note. A dialog that stayed open while the entry changed can turn lines that no longer exist into notes.
+
+**Delete.** Delete hides the entry. It leaves both calendars, but it stays in the storage and in the export, so the tuning data stays complete. It is stored as the correction `resident` with the source `calendar`. A running visit is closed. Guestbook deletes entries for real only through the retention period.
+
+**What the dialog cannot do.** Guestbook entries have a start and an end time, so "All day" and repeat rules are refused with a message. The location field is ignored. A ring that is still inside its ring window has no event yet. An event that moved to the other calendar after your edit has to be opened again there.
+
+**Which cards open the dialog.** In Home Assistant's own **Calendar** panel and in its built-in calendar card, a tap on an event opens it. Calendar Card Pro 5.0.0 opens the same dialog when you set `event_tap_action: {action: details}` (the default is `none`). Edit and Delete show up because both calendars support them and every event carries its entry id. Chronicle Card 1.14.0 opens its own popup, which only shows the event and has no Edit. Its `tap_action` takes any Home Assistant action, so you can send a tap to the Calendar panel with `navigate`.
+
+```yaml
+type: custom:calendar-card-pro
+entities:
+  - calendar.guestbook_visits
+  - calendar.guestbook_rings
+event_tap_action:
+  action: details
+```
 
 Guest names are trimmed and cut to 64 characters everywhere (guest profile, `guest_name`, `add_visit`, text reply of the push).
 
@@ -197,6 +233,7 @@ About corrections:
 - The original decision and reason are always kept next to your correction.
 - `start` and `end` replace the times shown in the calendar. They do not stop an open visit.
 - A ring that is still inside its ring window cannot be corrected yet.
+- Edits in the calendar dialog store the same corrections with the source `calendar`. See [Edit an entry in the calendar](#edit-an-entry-in-the-calendar).
 
 You find the `entry_id` in the attributes of `sensor.guestbook_latest_entry` and `sensor.guestbook_current_visit`, in the bus events, and in the push texts.
 
@@ -204,7 +241,7 @@ The latest entry is the entry with the most recent start that is a visit or an u
 
 ## Correct from the dashboard
 
-The correction question on your phone needs the push. The buttons work from any dashboard, also when you are at home or missed the push. `sensor.guestbook_latest_entry` shows which entry a press will change.
+The correction question on your phone needs the push. The buttons work from any dashboard, also when you are at home or missed the push. `sensor.guestbook_latest_entry` shows which entry a press will change. To fix an older entry, edit it in the calendar instead ([Edit an entry in the calendar](#edit-an-entry-in-the-calendar)); on a Calendar Card Pro card, set `event_tap_action` to `details` so a tap on an event opens that dialog.
 
 ```yaml
 type: vertical-stack

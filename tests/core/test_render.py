@@ -251,3 +251,11 @@ def test_titles_name_the_guests_or_the_uncertainty():
     assert render_title(ring, "en") == "Unanswered ring"
     assert render_title(ring, "de") == "Klingeln ohne Einlass"
     assert render_title(ring, "fr") == "Unanswered ring"
+
+
+def test_description_names_a_correction_from_the_calendar():
+    correction = Correction(kind="delivery", time=datetime(2026, 10, 21, 13, 30, tzinfo=UTC), source="calendar")
+    entry = visit(signal(SignalKind.RING, "12:00", "event.front_doorbell"), correction=correction)
+
+    assert describe(entry)[-1] == "Correction (calendar, 2026-10-21 15:30): delivery"
+    assert describe(entry, "de")[-1] == "Korrektur (Kalender, 2026-10-21 15:30): Lieferung"

@@ -206,6 +206,18 @@
     },
     "end_before_start": {
       "message": "The end must be after the start."
+    },
+    "not_in_calendar": {
+      "message": "The entry {entry_id} is not in this calendar (any more). Reload the calendar and open the event again."
+    },
+    "calendar_all_day": {
+      "message": "A Guestbook entry has a start and an end time. Switch off \"All day\"."
+    },
+    "calendar_repeat": {
+      "message": "A Guestbook entry cannot repeat. Remove the repeat rule."
+    },
+    "calendar_empty_title": {
+      "message": "The title must not be empty. Use a guest name, \"That was me\", \"Delivery\" or \"Don't know\"."
     }
   },
   "services": {

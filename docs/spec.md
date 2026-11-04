@@ -136,6 +136,15 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 74. As an iPhone user, I want the correction question to tell me to press and hold, since iOS shows the buttons only on a long press, so that I find the answer buttons.
 75. As a user of a Companion app phone, I want a tap on a push to open my Guestbook dashboard (option "Open dashboard path"), so that I can answer without searching for the dashboard.
 
+### Editing in the calendar
+
+76. As a user, I want to tap an event in the Home Assistant calendar, press Edit and change it, so that I correct an entry where I see it. Both calendars support editing and deleting, and every event carries its entry id as `uid`.
+77. As a user, I want the new title to be read like an answer to the correction question (`That was me` / `War ich`, `Delivery` / `Lieferung`, `Don't know` / `Weiß nicht`, `Visit: <name>` / `Besuch: <name>`, or a bare name), so that I type what I mean. Case does not matter and both languages work in every Home Assistant language. An unchanged title changes nothing.
+78. As a user, I want changed start and end times to replace the times shown in the calendar, so that I can fix a wrong time. The dialog works in whole minutes, so a time in the same minute counts as unchanged. The end of a running visit is ignored.
+79. As a user, I want lines I add to the description to become notes, because the log is generated. Lines I delete come back, and an unchanged description adds nothing.
+80. As a user, I want Delete to hide the entry from the calendars but keep it in the storage and the export, so that the tuning data stays complete. Delete is stored as the correction `resident` with the source `calendar`.
+81. As a user, I want a clear message when an edit is not possible (unknown entry, entry in the other calendar, ring still in its window, all-day or repeating event, empty title, end before start), so that the dialog never fails silently.
+
 ## Implementation Decisions
 
 ### Modules
@@ -143,7 +152,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 - **Rule core** (pure Python, no Home Assistant imports). Input: a stream of signals with timestamps, the guest list and the settings. Output: entries and lifecycle changes (visit started, signal added, visit ended, ring classified). It never reads the clock. Time moves only through signals and an explicit `advance(now)` call. It reports its next deadline (end of a ring window, end of a quiet period, maximum duration) so the caller can schedule a timer. It can be rebuilt from stored open entries after a restart.
 - **Store** (Home Assistant `Store`, JSON under `.storage/`, delayed saves). Holds all entries, open and closed, with their signals, decision, reason, correction, notes and a settings snapshot. Purges entries older than the retention period once a day and at startup. Schema has a version number for later migrations.
 - **Signal adapter** (integration layer). Subscribes to state changes of the selected sources and guest traits, normalizes them into signals and feeds the rule core. Ignores changes from or to `unavailable` and `unknown`. Doorbells: an `event` entity fires on every new event timestamp; a `binary_sensor` fires on `off`→`on`. Resident signals from entities fire on a change to `on`, `home`, `unlocked` or a new `event` timestamp.
-- **Calendars**: two read-only `calendar` entities, "Visits" and "Rings". Built on demand from the store in `async_get_events`. Event `uid` is the entry id. Times in UTC.
+- **Calendars**: two `calendar` entities, "Visits" and "Rings", that support `UPDATE_EVENT` and `DELETE_EVENT` (not `CREATE_EVENT`). Built on demand from the store in `async_get_events`. Event `uid` is the entry id. Times in UTC. Edits become corrections with the source `calendar` and notes (see "Editing in the calendar"); the stored decision is never changed.
 - **Description renderer**: turns an entry into the readable chronological log in the Home Assistant language (de or en). Condenses presence on/off pairs per sensor into one line with a time range.
 - **Sensors**: `binary_sensor` visit active, `sensor` current visit, one `binary_sensor` per guest. Attributes only small scalars and ids, never the log.
 - **Events**: `guestbook_visit_started`, `guestbook_visit_event`, `guestbook_visit_ended`, `guestbook_visit_corrected`. Payload: `entry_id`, `guests` (names), `certainty`, timestamps, and for `guestbook_visit_event` the signal kind and source entity id.
@@ -174,7 +183,7 @@ Every visit becomes one event in a visits calendar, from arrival to departure, w
 
 ### Data shape of an entry
 
-`id`, `kind` (the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival`, and `pending_ring` while a ring waits for its window to end), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `reason` (`code`, `detail`; why the entry got its kind), `end_reason` (`code`, `detail`; why a visit ended), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push`, `action` or `button`), `notes`, `settings` snapshot. The storage also keeps `rule_state`, private bookkeeping of the rule core. The export writes this shape, one entry per line, without `rule_state` and without pending rings.
+`id`, `kind` (the decision of the rules: `visit`, `unanswered_ring`, `resident_arrival`, and `pending_ring` while a ring waits for its window to end), `start`, `end` (null while open), `certainty`, `guests` (guest ids and names), `signals` (kind, source entity id, time, state), `reason` (`code`, `detail`; why the entry got its kind), `end_reason` (`code`, `detail`; why a visit ended), `correction` (`kind`, `guest_name`, `start`, `end`, `note`, `time`, `source`: `push`, `action`, `button` or `calendar`), `notes`, `settings` snapshot. The storage also keeps `rule_state`, private bookkeeping of the rule core. The export writes this shape, one entry per line, without `rule_state` and without pending rings.
 
 ### Platform
 

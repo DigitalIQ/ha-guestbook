@@ -26,6 +26,7 @@ from .const import (
     QUESTION_TOKEN_BYTES,
     SOURCE_ACTION,
     SOURCE_BUTTON,
+    SOURCE_CALENDAR,
     SOURCE_PUSH,
 )
 from .core import (
@@ -34,6 +35,7 @@ from .core import (
     ChangeKind,
     Correction,
     CorrectionKind,
+    EditPlan,
     EffectiveKind,
     Engine,
     Entry,
@@ -305,6 +307,60 @@ class GuestbookRuntime:
         self._store.async_put(entry)
         self._notify()
         return entry
+
+    @callback
+    def async_calendar_entry(self, entry_id: str, kinds: tuple[EffectiveKind, ...]) -> Entry:
+        """Return the entry behind a calendar event, or raise if it is unknown, pending or in another calendar."""
+        entry = self._entry(entry_id)
+        if entry.kind is EntryKind.PENDING_RING:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="entry_pending",
+                translation_placeholders={"entry_id": entry_id},
+            )
+        if effective_kind(entry) not in kinds:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="not_in_calendar",
+                translation_placeholders={"entry_id": entry_id},
+            )
+        return entry
+
+    @callback
+    def async_edit_entry(self, entry: Entry, plan: EditPlan) -> None:
+        """Apply an edit from a calendar dialog as a correction (source `calendar`) and notes.
+
+        A title that changed is the answer (kind and guest name). Without one the entry keeps the kind, guest name and
+        note of its correction, or `unknown` (which keeps the decision) when it has none. Times the plan leaves alone
+        keep the display overrides of the old correction. Added description text is appended as notes after the
+        correction succeeded, so a refused edit stores nothing.
+        """
+        if plan.answer or plan.start or plan.end:
+            previous = entry.correction
+            kind = plan.answer.kind if plan.answer else previous.kind if previous else CorrectionKind.UNKNOWN
+            guest_name = plan.answer.guest_name if plan.answer else previous.guest_name if previous else None
+            self.async_correct_entry(
+                entry.id,
+                kind,
+                guest_name=guest_name,
+                start=plan.start or (previous.start if previous else None),
+                end=plan.end or (previous.end if previous else None),
+                note=previous.note if previous else None,
+                source=SOURCE_CALENDAR,
+            )
+        for note in plan.notes:
+            entry.notes.append(note)
+        if plan.notes:
+            self._store.async_put(entry)
+            self._notify()
+
+    @callback
+    def async_hide_entry(self, entry: Entry) -> None:
+        """Delete from a calendar dialog: the entry leaves every calendar but stays stored and in the export.
+
+        Stored as a `resident` correction (source `calendar`), the answer that already means "not a visit".
+        """
+        self.async_correct_entry(entry.id, CorrectionKind.RESIDENT, source=SOURCE_CALENDAR)
 
     @callback
     def async_get_entry(self, entry_id: str) -> Entry | None:

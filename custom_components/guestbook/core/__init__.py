@@ -1,6 +1,7 @@
 """Rule core: turns signals into entries. No Home Assistant imports."""
 
 from .archive import entries_in_range, expired_entries, to_jsonl
+from .edit import EditPlan, TitleAnswer, added_lines, parse_title, plan_edit
 from .effective import EffectiveKind, effective_end, effective_guests, effective_kind, effective_start
 from .engine import Engine
 from .latest import latest_entry
@@ -32,6 +33,7 @@ __all__ = [
     "ChangeKind",
     "Correction",
     "CorrectionKind",
+    "EditPlan",
     "EffectiveKind",
     "Engine",
     "Entry",
@@ -42,7 +44,9 @@ __all__ = [
     "Settings",
     "Signal",
     "SignalKind",
+    "TitleAnswer",
     "action_id",
+    "added_lines",
     "clean_guest_name",
     "correction_actions",
     "effective_end",
@@ -55,6 +59,8 @@ __all__ = [
     "manual_visit",
     "normalize_name",
     "parse_action_id",
+    "parse_title",
+    "plan_edit",
     "push_message",
     "push_title",
     "render_description",
