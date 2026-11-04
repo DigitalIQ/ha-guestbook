@@ -36,13 +36,15 @@ Each visit is a calendar event. Its description holds the full log:
 
 ## Installation
 
-Guestbook is installed through [HACS](https://hacs.xyz) as a custom repository.
+Guestbook is in the default [HACS](https://hacs.xyz) catalog.
 
-1. In HACS open the three-dot menu, then **Custom repositories**.
-2. Add `https://github.com/DigitalIQ/ha-guestbook` with the type **Integration**.
-3. Search for **Guestbook** in HACS and download it.
-4. Restart Home Assistant.
-5. Go to **Settings > Devices & services > Add integration** and pick **Guestbook**.
+[![Open your Home Assistant instance and open Guestbook in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=DigitalIQ&repository=ha-guestbook&category=integration)
+
+1. In HACS, search for **Guestbook** and download it. The button above opens it directly.
+2. Restart Home Assistant.
+3. Go to **Settings > Devices & services > Add integration** and pick **Guestbook**.
+
+If your HACS does not list Guestbook yet, add it as a custom repository: in HACS open the three-dot menu, then **Custom repositories**, and add `https://github.com/DigitalIQ/ha-guestbook` with the type **Integration**.
 
 ## Setup
 
@@ -365,6 +367,10 @@ python3.14 -m venv .venv
 ```
 
 The rule core in `custom_components/guestbook/core/` is pure Python without Home Assistant imports. See `docs/spec.md` and `docs/architecture.md` for the design.
+
+## Questions and bugs
+
+Ask questions and share ideas for the rules in [Discussions](https://github.com/DigitalIQ/ha-guestbook/discussions). Report bugs as [issues](https://github.com/DigitalIQ/ha-guestbook/issues) with your Home Assistant version, the sources you use and, if possible, an export of the affected entries (remove names first).
 
 ## Support
 

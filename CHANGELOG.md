@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+Guestbook is in the default HACS catalog.
+
+- The README installs through the HACS search first, with a My Home Assistant button. The custom repository is the fallback.
+- Questions and ideas go to GitHub Discussions, bugs to issues.
+- CI actions updated (hassfest, setup-python).
+
 ## 0.1.3
 
 Review fixes ahead of the HACS submission.
